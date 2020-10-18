@@ -52,10 +52,8 @@ type
     function DivProjected(const delta: T2dPoint): Double;
     function Dot(const p: T2dPoint): Double;
     function DistanceTo(const p: T2dPoint): Double;
-    function DistanceToLine(const p0, dp: T2dPoint;
-      asSegment: Boolean): Double;
-    function DistanceToLineSigned(const p0, dp: T2dPoint;
-      asSegment: Boolean): Double;
+    function DistanceToLine(const p0, dp: T2dPoint; asSegment: Boolean): Double;
+    function DistanceToLineSigned(const p0, dp: T2dPoint; asSegment: Boolean): Double;
     function Angle: Double;
     function AngleTo(const p: T2dPoint): Double;
     function Magnitude: Double;
@@ -79,7 +77,7 @@ type
 {$Region 'TsdVector'}
 
   TsdVector = packed record
-    x, y, z: Double;
+  public
     constructor From(x, y, z: Double); overload;
     procedure Setup(x, y, z: Double);
     function IsZero: Boolean;
@@ -96,7 +94,8 @@ type
     function Cross(const v: TsdVector): TsdVector;
     function Normal(which: Integer): TsdVector;
     function Magnitude: Double;
-    function WithMagnitude(Value: Double): TsdVector;
+    function Normalize: TsdVector; inline;
+    function WithMagnitude(value: Double): TsdVector;
     function MagSquared: Double;
     function DivProjected(const delta: TsdVector): Double;
     function ScaledBy(s: Double): TsdVector;
@@ -106,18 +105,18 @@ type
     function DistanceToLine(const p0, dp: TsdVector): Double;
     function DistanceToPlane(const normal, origin: TsdVector): Double;
     function ScalarTripleProduct(const b, c: TsdVector): Double;
-    function OnLineSegment(const a, b: TsdVector;
-      tol: Double = LengthEps): Boolean;
-    function RotatedAbout(const Orig, Axis: TsdVector;
-      Angle: Double): TsdVector; overload;
-    function RotatedAbout(const Axis: TsdVector;
-      Angle: Double): TsdVector; overload;
+    function OnLineSegment(const a, b: TsdVector; tol: Double = LengthEps): Boolean;
+    function RotatedAbout(const orig, axis: TsdVector; angle: Double): TsdVector; overload;
+    function RotatedAbout(const axis: TsdVector; angle: Double): TsdVector; overload;
     function ScaleOutOfCsys(const u, v, n: TsdVector): TsdVector;
     function DotInToCsys(const u, v, n: TsdVector): TsdVector;
-    function Element(i: Integer): Double;
     function DirectionCosineWith(const b: TsdVector): Double;
     function ProjectXy: T2dPoint;
     function Project2d(const u, v: TsdVector): T2dPoint;
+  var
+    case Integer of
+      0: (x, y, z: Double);
+      1: (Element: array [0 .. 2] of Double);
   end;
   PsdVector = ^TsdVector;
   P3dPoints = ^T3dPoints;
@@ -235,8 +234,8 @@ type
     function ContainsPointProjd(const n, p: TsdVector): Boolean;
     function SignedVolume: Double;
     function Area: Double;
-    function Raytrace(const rayPoint, rayDir: TsdVector;
-      var t: Double; inters: PsdVector): Boolean;
+    function Raytrace(const rayPoint, rayDir: TsdVector; var t: Double;
+      inters: PsdVector): Boolean;
     function IsDegenerate: Boolean;
   public
     tag: Integer;
@@ -460,7 +459,8 @@ begin
 end;
 
 function T2dPoint.Angle: Double;
-var a: Double;
+var
+  a: Double;
 begin
   a := ArcTan2(y, x);
   Result := PI + FMod(a - PI, 2 * PI);
@@ -656,16 +656,6 @@ begin
   Result.Setup(Dot(u), Dot(v), Dot(n));
 end;
 
-function TsdVector.Element(i: Integer): Double;
-begin
-  case i of
-    0: Result := x;
-    1: Result := y;
-    2: Result := z;
-    else raise ESolidError.Create('TsdVector.Element: invalid index');
-  end;
-end;
-
 function TsdVector.Equals(const v: TsdVector; tol: Double): Boolean;
 var
   dv: TsdVector;
@@ -742,7 +732,8 @@ begin
 end;
 
 function TsdVector.DivProjected(const delta: TsdVector): Double;
-var mx, my, mz: Double;
+var
+  mx, my, mz: Double;
 begin
   mx := Abs(delta.x);
   my := Abs(delta.y);
@@ -755,25 +746,23 @@ begin
     Result := z / delta.z;
 end;
 
-function TsdVector.RotatedAbout(const Orig, Axis: TsdVector;
-  Angle: Double): TsdVector;
+function TsdVector.RotatedAbout(const orig, axis: TsdVector; angle: Double): TsdVector;
 var
   r: TsdVector;
 begin
-  r := Self.Minus(Orig);
-  r := r.RotatedAbout(Axis, Angle);
-  Result := r.Plus(Orig);
+  r := Self.Minus(orig);
+  r := r.RotatedAbout(axis, angle);
+  Result := r.Plus(orig);
 end;
 
-function TsdVector.RotatedAbout(const Axis: TsdVector;
-  Angle: Double): TsdVector;
+function TsdVector.RotatedAbout(const axis: TsdVector; angle: Double): TsdVector;
 var
   s, c, dif: Double;
   m: TsdVector;
 begin
-  SinCos(Angle, s, c);
+  SinCos(angle, s, c);
   dif := 1 - c;
-  m := Axis.WithMagnitude(1);
+  m := axis.WithMagnitude(1);
   Result.x :=
     x * (c + dif * m.x * m.x) +
     y * (dif * m.x * m.y - s * m.z) +
@@ -804,15 +793,25 @@ begin
   Result := (zs * Size + ys) * Size + xs;
 end;
 
-function TsdVector.WithMagnitude(Value: Double): TsdVector;
-var
-  m: Double;
+function TsdVector.Normalize: TsdVector;
 begin
-  m := Magnitude;
-  if m = 0.0 then
+  Result := WithMagnitude(1.0)
+end;
+
+function TsdVector.WithMagnitude(value: Double): TsdVector;
+var
+  d: Double;
+begin
+  d := Magnitude;
+  if d = 0.0 then
     Result.SetZero
   else
-    Result := Self.ScaledBy(Value / m);
+  begin
+    d := value / d;
+    Result.x := Result.x * d;
+    Result.y := Result.y * d;
+    Result.z := Result.z * d;
+  end;
 end;
 
 function TsdVector.ProjectXy: T2dPoint;
@@ -1155,25 +1154,25 @@ end;
 function TsdTriangle.Raytrace(const rayPoint, rayDir: TsdVector;
   var t: Double; inters: PsdVector): Boolean;
 var
-  edge1, edge2, pvec, tvec, qvec: TsdVector;
-  det, inv_det, u, v: Double;
+  ba, ca, rd, rp, qc: TsdVector;
+  det, invDet, u, v: Double;
 begin
-  edge1 := b.Minus(a);
-  edge2 := c.Minus(a);
-  pvec := rayDir.Cross(edge2);
-  det := edge1.Dot(pvec);
+  ba := b.Minus(a);
+  ca := c.Minus(a);
+  rd := rayDir.Cross(ca);
+  det := ba.Dot(rd);
   if -det < LengthEps then exit(False);
 
-  inv_det := 1.0 / det;
-  tvec := rayPoint.Minus(a);
-  u := tvec.Dot(pvec) * inv_det;
+  invDet := 1.0 / det;
+  rp := rayPoint.Minus(a);
+  u := rp.Dot(rd) * invDet;
   if (u < 0.0) or (u > 1.0) then exit(False);
 
-  qvec := tvec.Cross(edge1);
-  v := rayDir.Dot(qvec) * inv_det;
+  qc := rp.Cross(ba);
+  v := rayDir.Dot(qc) * invDet;
   if (v < 0.0) or (u + v > 1.0) then exit(False);
 
-  t := edge2.Dot(qvec) * inv_det;
+  t := ca.Dot(qc) * invDet;
   if inters <> nil then
     inters^ := rayPoint.Plus(rayDir.ScaledBy(t));
   Result := True;
@@ -1408,8 +1407,8 @@ var
 begin
   for i := 0 to 2 do
   begin
-    if (maxp.Element(i) < box.minp.Element(i) - LengthEps) then exit(True);
-    if (minp.Element(i) > box.maxp.Element(i) + LengthEps) then exit(True);
+    if maxp.Element[i] < box.minp.Element[i] - LengthEps then exit(True);
+    if minp.Element[i] > box.maxp.Element[i] + LengthEps then exit(True);
   end;
   Result := False;
 end;
@@ -1420,8 +1419,8 @@ var
 begin
   for i := 0 to 2 do
   begin
-    if (maxp.Element(i) < bmin.Element(i) - LengthEps) then exit(True);
-    if (minp.Element(i) > bmax.Element(i) + LengthEps) then exit(True);
+    if maxp.Element[i] < bmin.Element[i] - LengthEps then exit(True);
+    if minp.Element[i] > bmax.Element[i] + LengthEps then exit(True);
   end;
   Result := False;
 end;
@@ -1439,20 +1438,20 @@ begin
   begin
     j := (i + 1) mod 3;
     k := (i + 2) mod 3;
-    if lp * Abs(dp.Element(i)) < LengthEps then continue;
+    if lp * Abs(dp.Element[i]) < LengthEps then continue;
     for m := 0 to 1 do
     begin
       if m = 0 then
-        d := maxp.Element(i)
+        d := maxp.Element[i]
       else
-        d := minp.Element(i);
-      t := (d - a.Element(i)) / dp.Element(i);
+        d := minp.Element[i];
+      t := (d - a.Element[i]) / dp.Element[i];
       p := a.Plus(dp.ScaledBy(t));
       if asSegment and not InRange(t, -LengthEps, lp + LengthEps) then continue;
-      if p.Element(j) > maxp.Element(j) + LengthEps then continue;
-      if p.Element(k) > maxp.Element(k) + LengthEps then continue;
-      if p.Element(j) < minp.Element(j) - LengthEps then continue;
-      if p.Element(k) < minp.Element(k) - LengthEps then continue;
+      if p.Element[j] > maxp.Element[j] + LengthEps then continue;
+      if p.Element[k] > maxp.Element[k] + LengthEps then continue;
+      if p.Element[j] < minp.Element[j] - LengthEps then continue;
+      if p.Element[k] < minp.Element[k] - LengthEps then continue;
       exit(True);
     end;
   end;

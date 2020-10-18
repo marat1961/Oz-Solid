@@ -3,7 +3,10 @@
         <ProjectGuid>{9E2100F4-11F5-4DF7-B5B4-5947BCBDF2A9}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
-        <Projects Include="test\CsgTests.dproj">
+        <Projects Include="test\SolidTests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="OzSolid.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -14,23 +17,32 @@
             <Default.Personality/>
         </BorlandProject>
     </ProjectExtensions>
-    <Target Name="CsgTests">
-        <MSBuild Projects="test\CsgTests.dproj"/>
+    <Target Name="SolidTests">
+        <MSBuild Projects="test\SolidTests.dproj"/>
     </Target>
-    <Target Name="CsgTests:Clean">
-        <MSBuild Projects="test\CsgTests.dproj" Targets="Clean"/>
+    <Target Name="SolidTests:Clean">
+        <MSBuild Projects="test\SolidTests.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="CsgTests:Make">
-        <MSBuild Projects="test\CsgTests.dproj" Targets="Make"/>
+    <Target Name="SolidTests:Make">
+        <MSBuild Projects="test\SolidTests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="OzSolid">
+        <MSBuild Projects="OzSolid.dproj"/>
+    </Target>
+    <Target Name="OzSolid:Clean">
+        <MSBuild Projects="OzSolid.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="OzSolid:Make">
+        <MSBuild Projects="OzSolid.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="CsgTests"/>
+        <CallTarget Targets="SolidTests;OzSolid"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="CsgTests:Clean"/>
+        <CallTarget Targets="SolidTests:Clean;OzSolid:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="CsgTests:Make"/>
+        <CallTarget Targets="SolidTests:Make;OzSolid:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
