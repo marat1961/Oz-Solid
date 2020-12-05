@@ -10,7 +10,8 @@ uses
   TestUtils in 'TestUtils.pas',
   Oz.SGL.Collections in '..\..\Oz-SGL\src\Oz.SGL.Collections.pas',
   Oz.SGL.Heap in '..\..\Oz-SGL\src\Oz.SGL.Heap.pas',
-  Oz.Solid.Types in '..\src\Oz.Solid.Types.pas';
+  Oz.Solid.Types in '..\src\Oz.Solid.Types.pas',
+  Oz.SGL.HandleManager in '..\..\Oz-SGL\src\Oz.SGL.HandleManager.pas';
 
 {$R *.RES}
 

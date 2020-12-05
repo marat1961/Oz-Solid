@@ -39,18 +39,22 @@ type
 
 {$Region 'T2dPoint'}
 
+  P2dPoint = ^T2dPoint;
   T2dPoint = record
     x, y: Double;
+    constructor From(x, y: Double);
     procedure Setup(x, y: Double);
     procedure SetZero;
     function IsZero: Boolean;
     function Plus(const p: T2dPoint): T2dPoint;
     function Minus(const p: T2dPoint): T2dPoint;
-    constructor From(x, y: Double);
     function ToString: string;
     function ScaledBy(s: Double): T2dPoint;
     function DivProjected(const delta: T2dPoint): Double;
+    // Returns the dot product
     function Dot(const p: T2dPoint): Double;
+    // Returns the cross product
+    function Cross(const p: T2dPoint): Double;
     function DistanceTo(const p: T2dPoint): Double;
     function DistanceToLine(const p0, dp: T2dPoint; asSegment: Boolean): Double;
     function DistanceToLineSigned(const p0, dp: T2dPoint; asSegment: Boolean): Double;
@@ -68,29 +72,40 @@ type
     Zero: T2dPoint = (x: 0; y: 0);
     Empty: T2dPoint = (x: MaxDouble; y: MaxDouble);
   end;
-  P2dPoint = ^T2dPoint;
   P2dPoints = ^T2dPoints;
   T2dPoints = TArray<T2dPoint>;
 
 {$EndRegion}
 
+{$Region 'TsdSegment'}
+
+  TsdSegment = record
+    A, B: T2dPoint;
+  end;
+
+{$EndRegion}
+
 {$Region 'TsdVector'}
 
+  PsdVector = ^TsdVector;
   TsdVector = packed record
   public
-    constructor From(x, y, z: Double); overload;
+    constructor From(x, y, z: Double);
     procedure Setup(x, y, z: Double);
     function IsZero: Boolean;
     procedure SetZero;
     procedure Move(dx, dy, dz: Double);
-    function Plus(const v: TsdVector): TsdVector;
+    function Plus(Dx, Dy, Dz: Double): TsdVector; overload;
+    function Plus(const v: TsdVector): TsdVector; overload;
     function Minus(const v: TsdVector): TsdVector;
     function Negated: TsdVector;
     function ToString: string;
     function Hash: NativeInt;
     function Equals(const v: TsdVector; tol: Double = LengthEps): Boolean;
     function EqualsExactly(const v: TsdVector): Boolean;
+    // Returns the dot product
     function Dot(const v: TsdVector): Double;
+    // Returns the cross product
     function Cross(const v: TsdVector): TsdVector;
     function Normal(which: Integer): TsdVector;
     function Magnitude: Double;
@@ -113,12 +128,13 @@ type
     function DirectionCosineWith(const b: TsdVector): Double;
     function ProjectXy: T2dPoint;
     function Project2d(const u, v: TsdVector): T2dPoint;
+  type
+    TElement = array [0 .. 2] of Double;
   var
     case Integer of
       0: (x, y, z: Double);
-      1: (Element: array [0 .. 2] of Double);
+      1: (Element: TElement);
   end;
-  PsdVector = ^TsdVector;
   P3dPoints = ^T3dPoints;
   T3dPoints = TArray<TsdVector>;
 
@@ -279,11 +295,17 @@ function Bernstein(k, deg: Integer; t: Double): Double;
 function BernsteinDerivative(k, deg: Integer; t: Double): Double;
 function GetNormal(v: TsdVector): TsdVector;
 
+// Return the intersection point of lines
+function IntersectionOfLines(ax0, ay0, dxa, dya, bx0, by0, dxb, dyb: Double;
+  var cx, cy: Double): Boolean;
+// Return intersection point of the segments
+function IntersectionOfSegments(const s1, e1, s2, e2: T2dPoint;
+  var cross: T2dPoint): Boolean;
 {$EndRegion}
 
 implementation
 
-{$Region 'Sbroutines'}
+{$Region 'Subroutines'}
 
 procedure Swap(var i, j: T2dPoint);
 var
@@ -352,9 +374,79 @@ begin
   Result.z := v.z / Length;
 end;
 
+function IntersectionOfLines(ax0, ay0, dxa, dya, bx0, by0, dxb, dyb: Double;
+  var cx, cy: Double): Boolean;
+var
+  a: array [0..1, 0..1] of Double;
+  b: array [0..1] of Double;
+  v: Double;
+begin
+  if Abs(dya) > Abs(dyb) then
+  begin
+    a[0, 0] := dya;
+    a[0, 1] := -dxA;
+    b[0] := ax0 * dya - ay0 * dxa;
+    a[1, 0] := dyb;
+    a[1, 1] := -dxB;
+    b[1] := bx0 * dyb - by0 * dxb;
+  end
+  else
+  begin
+    a[1, 0] := dya;
+    a[1, 1] := -dxA;
+    b[1] := ax0 * dya - ay0 * dxa;
+    a[0, 0] := dyb;
+    a[0, 1] := -dxB;
+    b[0] := bx0 * dyb - by0 * dxb;
+  end;
+  if Abs(a[0, 0] * a[1, 1] - a[0, 1] * a[1, 0]) < LengthEps then
+    exit(False);
+  v := a[1, 0] / a[0, 0];
+  a[1, 0] := a[1, 0] - a[0, 0] * v;
+  a[1, 1] := a[1, 1] - a[0, 1] * v;
+  b[1] := b[1] - b[0] * v;
+  cy := b[1] / a[1, 1];
+  cx := (b[0] - a[0, 1] * (cy)) / a[0, 0];
+  result := True;
+end;
+
+function IntersectionOfSegments(const s1, e1, s2, e2: T2dPoint;
+  var cross: T2dPoint): Boolean;
+var
+  dp1, dp2: T2dPoint;
+  a1, b1, d1, a2, b2, d2, u, s12s, s12e, s21s, s21e: Double;
+begin
+  dp1 := e1.Minus(s1);
+  dp2 := e2.Minus(s2);
+  a1 := -dp1.y;
+  b1 := dp1.x;
+  d1 := -(a1 * s1.x + b1 * s1.y);
+  a2 := -dp2.y;
+  b2 := dp2.x;
+  d2 := -(a2 * s2.x + b2 * s2.y);
+  s12s := a2 * s1.x + b2 * s1.y + d2;
+  s12e := a2 * e1.x + b2 * e1.y + d2;
+  s21s := a1 * s2.x + b1 * s2.y + d1;
+  s21e := a1 *e2.x + b1 * e2.y + d1;
+  if (s12s * s12e >= 0) or (s21s * s21e >= 0) then
+    Result := False
+  else
+  begin
+    u := s12s / (s12s - s12e);
+    cross := s1.Plus(dp1.ScaledBy(u));
+    Result := True;
+  end;
+end;
+
 {$EndRegion}
 
 {$Region 'T2dPoint'}
+
+constructor T2dPoint.From(x, y: Double);
+begin
+  Self.x := x;
+  Self.y := y;
+end;
 
 procedure T2dPoint.Setup(x, y: Double);
 begin
@@ -385,12 +477,6 @@ begin
   Result.y := y - p.y;
 end;
 
-constructor T2dPoint.From(x, y: Double);
-begin
-  Self.x := x;
-  Self.y := y;
-end;
-
 function T2dPoint.ToString: string;
 begin
   Result := Format('(x=%.2f y=%.2f)', [x, y]);
@@ -413,6 +499,11 @@ end;
 function T2dPoint.Dot(const p: T2dPoint): Double;
 begin
   Result := x * p.x + y * p.y;
+end;
+
+function T2dPoint.Cross(const p: T2dPoint): Double;
+begin
+  Result := (Self.x * p.y) - (Self.y * p.x);
 end;
 
 function T2dPoint.DistanceTo(const p: T2dPoint): Double;
@@ -547,6 +638,13 @@ begin
   x := x + dx;
   y := y + dy;
   z := z + dz;
+end;
+
+function TsdVector.Plus(Dx, Dy, Dz: Double): TsdVector;
+begin
+  Result.X := X + Dx;
+  Result.Y := Y + Dy;
+  Result.Z := Z + Dz;
 end;
 
 function TsdVector.Plus(const v: TsdVector): TsdVector;
