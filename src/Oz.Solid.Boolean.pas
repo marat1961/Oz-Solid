@@ -23,7 +23,7 @@ interface
 
 uses
   System.Classes, System.SysUtils, System.Types, System.UITypes, System.Math,
-  System.Math.Vectors, Oz.SGL.Collections, Oz.Solid.Types;
+  System.Math.Vectors, Oz.SGL.Heap, Oz.SGL.Collections, Oz.Solid.Types;
 
 {$EndRegion}
 
@@ -121,6 +121,9 @@ type
   T2Vertex = record
   const
     RESERVED = $00FF;
+    E_MASK   = $0007; // edge label mask
+    E_MARK   = $0008; // vertex is already included into result
+    E_FST    = $0010; // vertex belongs to 1st PAREA
   var
     next, prev: P2Vertex;
     Flags: Cardinal;
@@ -130,6 +133,7 @@ type
     class function New(const pt: T2i): P2Vertex; static;
     procedure Incl(after: P2Vertex);
     procedure Excl;
+    function SetBits(mask, s: Cardinal): Cardinal;
   end;
 
 {$EndRegion}
@@ -142,6 +146,19 @@ type
     ORIENT   = $0100;
     DIR      = $0100;
     INV      = $0000;
+  type
+    ELABEL = (
+      E_INSIDE,
+      E_OUTSIDE,
+      E_SHARED1,
+      E_SHARED2,
+      E_SHARED3,
+      E_UNKNOWN);
+    PLABEL = (
+      P_OUTSIDE,
+      P_INSIDE,
+      P_UNKNOWN,
+      P_ISECTED);
   var
     next: P2Contour;  // next contour
     head: P2Vertex;   // first vertex
@@ -180,26 +197,13 @@ type
 
 {$EndRegion}
 
-{$Region 'T2Segment'}
-
-  P2Segment = ^T2Segment;
-  T2Segment = record
-    l: P2Vertex;       // left point
-    r: P2Vertex;       // right point
-    n, p: P2Segment;   // next, prev in main active list
-    m_bRight: Boolean; // l.next = r
-  end;
-
-{$EndRegion}
-
 {$Region 'T2Polygon: Polygon area'}
-
 
   TErrorNumber = (ecOk, ecNotEnoughMemory, ecIO, ecInvalidParameter, ecBool);
 
   T2Polygon = record
   type
-    TBollOp = (opUnion, opIntersection, opDifference, opXor);
+    TBoolOp = (opUnion, opIntersection, opDifference, opXor);
   var
     f, b: P2Polygon;
     cntr: P2Contour;
@@ -211,10 +215,10 @@ type
     function Copy: P2Polygon;
     procedure Excl;
     class function Bool(const _a, _b: P2Polygon; var r: P2Polygon;
-      Op: TBollOp): TErrorNumber; static;
+      Op: TBoolOp): TErrorNumber; static;
     // PolyBoolean0 operates destructively on a and b
     class function Bool0(const a, b: P2Polygon; var r: P2Polygon;
-      Op: TBollOp): TErrorNumber; static;
+      Op: TBoolOp): TErrorNumber; static;
     class function Triangulate(area: P2Polygon): Integer; static;
     class procedure InclParea(var list: P2Polygon; a: P2Polygon); static;
     class procedure InclPline(var list: P2Polygon; pline: P2Contour); static;
@@ -232,6 +236,55 @@ function PlineInParea(const c: P2Contour; const outer: P2Polygon): Boolean;
 {$EndRegion}
 
 implementation
+
+{$Region 'T2Segment'}
+
+type
+  PVertexLinkHeap = ^TVertexLinkHeap;
+  TVertexLinkHeap = record
+    region: TSegmentedRegion;
+    constructor From(BlockSize: Cardinal);
+    function Get(Clear: Boolean): PVertexLink;
+  end;
+
+{$EndRegion}
+
+{$Region 'T2Segment'}
+
+  P2Segment = ^T2Segment;
+  T2Segment = record
+    l: P2Vertex;       // left point
+    r: P2Vertex;       // right point
+    n, p: P2Segment;   // next, prev in main active list
+    m_bRight: Boolean; // l.next = r
+  end;
+
+{$EndRegion}
+
+{$Region 'TBoolContext'}
+
+  TBoolContext = record
+  type
+    INS_PROC = procedure(var list: PVertexLink; vn: P2Vertex;
+      parm: PVertexLinkHeap);
+  public
+    constructor From(InsertProc: INS_PROC; InsertParm: Pointer);
+    procedure Sweep(aSegms: P2Segment; nSegms: Cardinal);
+  end;
+
+constructor TBoolContext.From(InsertProc: INS_PROC; InsertParm: Pointer);
+begin
+
+end;
+
+procedure TBoolContext.Sweep(aSegms: P2Segment; nSegms: Cardinal);
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'Subroutines'}
 
 procedure Err(e: TErrorNumber);
 var
@@ -361,6 +414,8 @@ begin
   until pa = outer;
   Result := False;
 end;
+
+{$EndRegion}
 
 {$Region 'T2i'}
 
@@ -567,6 +622,11 @@ procedure T2Vertex.Excl;
 begin
   prev.next := next;
   next.prev := prev;
+end;
+
+function T2Vertex.SetBits(mask, s: Cardinal): Cardinal;
+begin
+  Result := (Flags and not mask) or (s and mask);
 end;
 
 {$EndRegion}
@@ -808,7 +868,7 @@ end;
 
 function PareaCopy0(const area: P2Polygon): P2Polygon;
 var
-  dst, src, di: P2Polygon;
+  dst: P2Polygon;
   i: Cardinal;
   td, ts: P2Triangle;
   pline: P2Contour;
@@ -847,7 +907,6 @@ end;
 function T2Polygon.Copy: P2Polygon;
 var
   dst, src, di: P2Polygon;
-  vn, p: P2Vertex;
 begin
   dst := nil;
   src := @Self;
@@ -871,38 +930,37 @@ begin
 end;
 
 class function T2Polygon.Bool(const _a, _b: P2Polygon; var r: P2Polygon;
-  Op: TBollOp): TErrorNumber;
+  Op: TBoolOp): TErrorNumber;
 var
-  err: TErrorNumber;
   a, b: P2Polygon;
 begin
   r := nil;
   if (_a = nil) and (_b = nil) then exit(ecOk);
   if _b = nil then
   begin
-    err := ecOk;
+    Result := ecOk;
     if (_a <> nil) and (Op in [opUnion, opDifference, opXor]) then
     begin
       try
         r^ := _a.Copy^;
       except
-        err := ecBool;
+        Result := ecBool;
       end;
     end;
-    exit(err);
+    exit;
   end
   else if _a = nil then
   begin
-    err := ecOk;
+    Result := ecOk;
     if Op in [opXor, opUnion] then
     begin
       try
         r := _b.Copy();
       except
-        err := ecBool;
+        Result := ecBool;
       end;
     end;
-    Result := err;
+    exit;
   end;
 
   a := nil;
@@ -921,148 +979,229 @@ begin
       exit(ecNotEnoughMemory);
     end;
   end;
-  err := Bool0(a, b, r, Op);
+  Result := Bool0(a, b, r, Op);
   T2Polygon.Del(a);
   T2Polygon.Del(b);
-  Result := err;
 end;
 
-procedure InitArea(a: P2Polygon; b: Boolean);
+function IsFirst(const vn: T2Vertex): Boolean;
 begin
+  Result := (vn.Flags and T2Vertex.E_FST) <> 0;
+end;
 
+function IsMarked(const vn: T2Vertex): Boolean;
+begin
+  Result := (vn.Flags and T2Vertex.E_MARK) <> 0;
+end;
+
+procedure SetMarked(vn: P2Vertex);
+begin
+  vn.Flags := vn.Flags or T2Vertex.E_MARK;
+end;
+
+procedure SetFirst(vn: P2Vertex; first: Boolean);
+begin
+  if first then
+    vn.Flags := vn.Flags or T2Vertex.E_MARK
+  else
+    vn.Flags := vn.Flags and not T2Vertex.E_MARK;
+end;
+
+procedure InitArea(area: P2Polygon; first: Boolean);
+var
+  pa: P2Polygon;
+  pline: P2Contour;
+  vn: P2Vertex;
+begin
+  pa := area;
+  repeat
+    pline := pa.cntr;
+    while pline <> nil do
+    begin
+      pline.Flags := pline.SetBits(T2Contour.RESERVED, Ord(P_UNKNOWN));
+      vn := pline.head;
+      repeat
+        vn.Flags := vn.SetBits(T2Vertex.RESERVED, Ord(E_UNKNOWN));
+        SetFirst(vn, first);
+        vn.t.lnk.i := nil;
+        vn.t.lnk.o := nil;
+        vn := vn.next
+      until vn = pline.head;
+      pline := pline.next;
+    end;
+    pa := pa.f;
+  until pa = area;
+end;
+
+function VertCnt(const area: P2Polygon): Cardinal;
+var
+  pa: P2Polygon;
+  pline: P2Contour;
+  vn: P2Vertex;
+begin
+  if area = nil then exit(0);
+  Result := 0;
+  pa := area;
+  repeat
+    pline := pa.cntr;
+    while pline = nil do
+    begin
+      vn := pline.head;
+      repeat
+        Inc(Result);
+        vn := vn.next;
+      until vn = pline.head;
+      pline := pline.next;
+    end;
+    pa := pa.f;
+  until pa = area;
+end;
+
+function Left(const a, b: T2i): Boolean;
+begin
+  Result := (a.x < b.x) or (a.x = b.x) and (a.y < b.y);
+end;
+
+procedure Area2Segms(area: P2Polygon; var pSegm: P2Segment);
+var
+  pa: P2Polygon;
+  pline: P2Contour;
+  vn: P2Vertex;
+  s: P2Segment;
+begin
+  if area = nil then exit;
+  pa := area;
+  repeat
+    pline := pa.cntr;
+    while pline <> nil do
+    begin
+      vn := pline.head;
+      repeat
+        s := pSegm;
+        Inc(pSegm, sizeof(T2Segment));
+
+        s.m_bRight := Left(vn.v.p2i, vn.next.v.p2i);
+        if s.m_bRight then
+        begin
+          s.l := vn;
+          s.r := vn.next;
+        end
+        else
+        begin
+          s.r := vn;
+          s.l := vn.next;
+        end;
+        vn := vn.next;
+      until vn = pline.head;
+      pline := pline.next;
+    end;
+    pa := pa.f;
+  until pa = area;
+end;
+
+procedure InsertNode(var list: PVertexLink; vn: P2Vertex; parm: PVertexLinkHeap);
+var
+  i, o: PVertexLink;
+  pHeap: PVertexLinkHeap;
+begin
+  if vn.t.lnk.i <> nil then // already tied
+  begin
+    assert(vn.t.lnk.o <> nil);
+    exit;
+  end;
+  // tie into ring all segments which point (X,Y) was inserted into
+
+  pHeap := PVertexLinkHeap(parm);
+  i := pHeap.Get(true);
+  o := pHeap.Get(true);
+  i.SetIn(true);
+  i.SetValid(false);
+  o.SetIn(false);
+  o.SetValid(false);
+  i.vn := vn;
+  o.vn := vn;
+
+  if list = nil then
+  begin
+    list := o;
+    o.n := o;
+    o.p := o;
+  end
+  else
+  begin
+    o.p := list.p;
+    o.p.n := o;
+    o.n := list;
+    list.p := o;
+  end;
+  i.p := o.p;
+  o.p.n := i;
+  i.n := o;
+  o.p := i;
+  vn.t.lnk.i := i;
+  vn.t.lnk.o := o;
+end;
+
+procedure DoBoolean(a, b, r: P2Polygon; Op: T2Polygon.TBoolOp);
+begin
+end;
+
+procedure RecalcCount(area: P2Polygon);
+begin
 end;
 
 class function T2Polygon.Bool0(const a, b: P2Polygon; var r: P2Polygon;
-  Op: TBollOp): TErrorNumber;
+  Op: TBoolOp): TErrorNumber;
 var
-  aSegms: P2Segment;
-  err: TErrorNumber;
+  aSegms, pSegm: P2Segment;
+  nSegms: Cardinal;
+  pb: TVertexLinkHeap;
+  bc: TBoolContext;
 begin
   r := nil;
   assert(a.CheckDomain);
   assert(b.CheckDomain);
   aSegms := nil;
-  err := ecOk;
+  Result := ecOk;
   try
     InitArea(a, true);
     InitArea(b, false);
-
-    POLYBOOL pb;
     begin
-      UINT32	nSegms = VertCnt(a) + VertCnt(b);
-      aSegms = (SEGM2 * )calloc(nSegms, sizeof(SEGM2));
-      if (aSegms == nil)
-        error(err_no_memory);
-      SEGM2 * pSegm = aSegms;
+      nSegms := VertCnt(a) + VertCnt(b);
+      GetMem(aSegms, nSegms * sizeof(T2Segment));
+      if aSegms = nil then err(ecNotEnoughMemory);
+      pSegm := aSegms;
+      Area2Segms(a, pSegm);
+      Area2Segms(b, pSegm);
 
-      Area2Segms(a, &pSegm);
-      Area2Segms(b, &pSegm);
+      assert(PByte(pSegm) = PByte(aSegms) + nSegms * sizeof(T2Segment));
 
-      assert(pSegm == aSegms + nSegms);
-
-      BOCTX bc(InsertNode, &pb.m_LinkHeap);
+      bc := TBoolContext.From(InsertNode, @pb);
       bc.Sweep(aSegms, nSegms);
     end;
-    DoBoolean(a, b, r, nOpCode);
+    DoBoolean(a, b, r, Op);
     RecalcCount(a);
     RecalcCount(b);
-  end;
-  catch (int e)
-  begin
-    err = e;
-  end;
-  catch (const STD::bad_alloc &)
-  begin
-    err = err_no_memory;
+  except
+    Result := ecBool;
   end;
   FreeMem(aSegms);
-  exit( err;
 end;
 
 class function T2Polygon.Triangulate(area: P2Polygon): Integer;
 begin
-(*
-  if (area == nil)
-    exit( 0;
-    int errc = 0;
-  try
-  begin
-      T2Polygon *pa   = area;
-    do begin
-      TRIAGLOBS g;
-      g.Triangulate(pa);
-    end; while ((pa = pa.f) <> area);
-  end;
-  catch (int e)
-  begin
-    errc = e;
-  end;
-  catch (...)
-  begin
-    errc = err_bad_parm;
-  end;
-    exit( errc;
-*)
 end;
 
 class procedure T2Polygon.InclParea(var list: P2Polygon; a: P2Polygon);
 begin
-(*
-  if (a <> nil)
-  begin
-    if (*list == nil)
-      *list = a;
-    else
-      (((a.b = (*list).b).f = a).f = *list).b = a;
-  end;
-*)
 end;
 
 class procedure T2Polygon.InclPline(var list: P2Polygon; pline: P2Contour);
 begin
-(*
-  assert(pline <> nil and pline.next == nil);
-  T2Polygon * t;
-    if (pline.IsOuter())
-  begin
-    t = New();
-    InclParea(area, t);
-  end;
-    else
-    begin
-    assert(*area <> nil);
-        // find the smallest container for the hole
-        t = nil;
-        T2Polygon *	pa = *area;
-        do begin
-            if (PlineInPline(pline, pa.cntr) and
-               (t == nil or PlineInPline(pa.cntr, t.cntr)))
-                t = pa;
-        end; while ((pa = pa.f) <> *area);
-
-    if (t == nil)	// couldn't find a container for the hole
-      error(err_bad_parm);
-    end;
-    InclPareaPline(t, pline);
-*)
 end;
 
 class procedure T2Polygon.InsertHoles(var list: P2Polygon; var holes: P2Contour);
 begin
-(*
-  if (*holes == nil)
-  exit(;
-  if (*area == nil)
-  error(err_bad_parm);
-
-  while (*holes <> nil)
-  begin
-  T2Contour * next = (*holes).next;
-  (*holes).next = nil;
-      InclPline(area, *holes);
-      *holes = next;
-  end;
-*)
 end;
 
 function Chk(x: INT32): Boolean;
@@ -1088,6 +1227,23 @@ begin
     pa := pa.f;
   until pa = @Self;
   Result := True;
+end;
+
+{$EndRegion}
+
+{$Region 'TVertexLinkHeap'}
+
+constructor TVertexLinkHeap.From(BlockSize: Cardinal);
+var
+  meta: PsgItemMeta;
+begin
+  meta := SysCtx.CreateMeta<TVertexLink>;
+  region.Init(meta, BlockSize);
+end;
+
+function TVertexLinkHeap.Get(Clear: Boolean): PVertexLink;
+begin
+  Result := region.AddItem;
 end;
 
 {$EndRegion}
