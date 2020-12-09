@@ -87,6 +87,7 @@ type
 
   P2Vertex = ^T2Vertex;
 
+  PPVertexLink = ^PVertexLink;
   PVertexLink = ^TVertexLink;
   TVertexLink = record
   type
@@ -123,12 +124,23 @@ type
     RESERVED = $00FF;
     E_MASK   = $0007; // edge label mask
     E_MARK   = $0008; // vertex is already included into result
-    E_FST    = $0010; // vertex belongs to 1st PAREA
+    E_FST    = $0010; // vertex belongs to 1st T2Polygon
+  type
+    ELABEL = (
+      E_INSIDE,
+      E_OUTSIDE,
+      E_SHARED1,
+      E_SHARED2,
+      E_SHARED3,
+      E_UNKNOWN);
   var
     next, prev: P2Vertex;
     Flags: Cardinal;
     v: TVertexPoint;
     t: TemporaryFields;
+  private
+    procedure SetVnodeLabel(value: ELABEL);
+    function GetVnodeLabel: ELABEL;
   public
     class function New(const pt: T2i): P2Vertex; static;
     procedure Incl(after: P2Vertex);
@@ -146,14 +158,8 @@ type
     ORIENT   = $0100;
     DIR      = $0100;
     INV      = $0000;
+    P_MASK =  $0003; // pline label mask
   type
-    ELABEL = (
-      E_INSIDE,
-      E_OUTSIDE,
-      E_SHARED1,
-      E_SHARED2,
-      E_SHARED3,
-      E_UNKNOWN);
     PLABEL = (
       P_OUTSIDE,
       P_INSIDE,
@@ -168,6 +174,8 @@ type
     vMax: TVertexPoint;
   private
     function SetBits(mask, s: Cardinal): Cardinal;
+    procedure SetPlineLabel(value: PLABEL);
+    function GetPlineLabel: PLABEL;
   public
     class function New(const g: T2i): P2Contour; static;
     class procedure Del(var pline: P2Contour); static;
@@ -629,6 +637,16 @@ begin
   Result := (Flags and not mask) or (s and mask);
 end;
 
+procedure T2Vertex.SetVnodeLabel(value: ELABEL);
+begin
+  Flags := (Flags and not E_MASK) or (Ord(value) and E_MASK);
+end;
+
+function T2Vertex.GetVnodeLabel: ELABEL;
+begin
+  Result := ELABEL(Flags and E_MASK);
+end;
+
 {$EndRegion}
 
 {$Region 'T2Contour'}
@@ -815,6 +833,16 @@ begin
   Result := (Flags and not mask) or (s and mask);
 end;
 
+procedure T2Contour.SetPlineLabel(value: PLABEL);
+begin
+  Flags := (Flags and not P_MASK) or (Ord(value) and P_MASK);
+end;
+
+function T2Contour.GetPlineLabel: PLABEL;
+begin
+  Result := PLABEL(Flags and P_MASK);
+end;
+
 {$EndRegion}
 
 {$Region 'T2Polygon'}
@@ -962,9 +990,7 @@ begin
     end;
     exit;
   end;
-
-  a := nil;
-  b := nil;
+  a := nil; b := nil;
   if _a <> nil then
   begin
     a := _a.Copy;
@@ -984,12 +1010,12 @@ begin
   T2Polygon.Del(b);
 end;
 
-function IsFirst(const vn: T2Vertex): Boolean;
+function IsFirst(const vn: P2Vertex): Boolean;
 begin
   Result := (vn.Flags and T2Vertex.E_FST) <> 0;
 end;
 
-function IsMarked(const vn: T2Vertex): Boolean;
+function IsMarked(const vn: P2Vertex): Boolean;
 begin
   Result := (vn.Flags and T2Vertex.E_MARK) <> 0;
 end;
@@ -1079,7 +1105,6 @@ begin
       repeat
         s := pSegm;
         Inc(pSegm, sizeof(T2Segment));
-
         s.m_bRight := Left(vn.v.p2i, vn.next.v.p2i);
         if s.m_bRight then
         begin
@@ -1110,7 +1135,6 @@ begin
     exit;
   end;
   // tie into ring all segments which point (X,Y) was inserted into
-
   pHeap := PVertexLinkHeap(parm);
   i := pHeap.Get(true);
   o := pHeap.Get(true);
@@ -1120,7 +1144,6 @@ begin
   o.SetValid(false);
   i.vn := vn;
   o.vn := vn;
-
   if list = nil then
   begin
     list := o;
@@ -1142,8 +1165,177 @@ begin
   vn.t.lnk.o := o;
 end;
 
-procedure DoBoolean(a, b, r: P2Polygon; Op: T2Polygon.TBoolOp);
+procedure MergeSort(var head: PVertexLink);
 begin
+
+end;
+
+function HasShared3(const a: PVertexLink): Boolean;
+var
+  b: PVertexLink;
+begin
+  if (a = nil) or (a.n = nil) then
+    exit(False);
+  b := a.n;
+  Result := (a.dx = b.dx) and (a.dy = b.dy) and (a.IsFirst = b.IsFirst);
+end;
+
+procedure MarkAsDone(const a: PVertexLink);
+begin
+  if a.IsIn then
+  begin
+    a.vn.prev.SetVnodeLabel(E_SHARED3);
+    a.vn.t.lnk.i := nil;
+  end
+  else
+  begin
+    a.vn.SetVnodeLabel(E_SHARED3);
+    a.vn.t.lnk.o := nil;
+  end;
+end;
+
+procedure LnkUntie(const l: PVertexLink);
+begin
+  if l.IsIn then
+    l.vn.t.lnk.i := nil
+  else
+    l.vn.t.lnk.o := nil;
+end;
+
+procedure SortDesc(area: P2Polygon);
+var
+  pa: P2Polygon;
+  pline: P2Contour;
+  vn, vnext: P2Vertex;
+  head, l, c, s, q: PVertexLink;
+  pp: PPVertexLink;
+begin
+  pa := area;
+  repeat
+    pline := pa.cntr;
+    while pline <> nil do
+    begin
+      vn := pline.head;
+      repeat
+        if (vn.t.lnk.i = nil) and (vn.t.lnk.o = nil) then
+          continue;
+
+        if vn.t.lnk.i = nil then
+          head := vn.t.lnk.o
+        else if vn.t.lnk.o = nil then
+          head := vn.t.lnk.i
+        else if (vn.t.lnk.o.n = vn.t.lnk.i) and (vn.t.lnk.o.p = vn.t.lnk.i) then
+        begin
+          // resolve trivial intersections at endpoints
+          vn.t.lnk.o := nil;
+          vn.t.lnk.i := nil;
+          continue;
+        end
+        else
+          head := vn.t.lnk.i;
+
+        if head.IsValid then
+        begin
+          pline.SetPlineLabel(P_ISECTED);
+          continue;
+        end;
+        l := head;
+        repeat
+          if l.IsIn then
+            vnext := l.vn.prev
+          else
+            vnext := l.vn.next;
+          l.dx := vnext.v.p2i.x - vn.v.p2i.x;
+          l.dy := vnext.v.p2i.y - vn.v.p2i.y;
+          l.SetFirst(IsFirst(l.vn));
+          l := l.n;
+        until l = head;
+
+        l.p.n := nil;
+        MergeSort(l);
+
+        // now, untie self shared edges
+        begin
+          pp := @l;
+          c := pp^;
+          while c <> nil do
+          begin
+            if not HasShared3(c) then
+              pp := @c.n
+            else
+            begin
+              pline.SetPlineLabel(P_ISECTED);
+              MarkAsDone(c);
+              MarkAsDone(c.n);
+              pp := @c.n.n;
+            end;
+            c := pp^;
+          end;
+        end;
+
+        if l = nil then
+          continue;
+        assert(l.n <> nil);
+        if l.n.n = nil then
+        begin
+          // only trivial intersection remained
+          LnkUntie(l);
+          LnkUntie(l.n);
+          continue;
+        end;
+        // now we have only true intersections make valid doubly linked list
+
+        pline.SetPlineLabel(P_ISECTED);
+        s := l;
+        q := s.n;
+        while q <> nil do
+        begin
+          s.SetValid(true);
+          q.p := s;
+          s := s.n;
+          q := s.n;
+        end;
+        l.p := s;
+        s.n := l;
+        vn := vn.next;
+      until vn = pline.head;
+      pline := pline.next;
+    end;
+    pa := pa.f;
+  until pa = area;
+end;
+
+procedure LabelPline(pline: P2Contour; other: P2Polygon);
+begin
+end;
+
+procedure LabelParea(area: P2Polygon; other: P2Polygon);
+begin
+end;
+
+procedure CollectParea(area: P2Polygon; var r: P2Polygon; var holes: P2Contour;
+  Op: T2Polygon.TBoolOp);
+begin
+end;
+
+procedure DoBoolean(a, b, r: P2Polygon; Op: T2Polygon.TBoolOp);
+var
+  holes: P2Contour;
+begin
+  SortDesc(a);
+  SortDesc(b);
+  LabelParea(a, b);
+  LabelParea(b, a);
+  holes := nil;
+  CollectParea(a, r, holes, Op);
+  CollectParea(b, r, holes, Op);
+  try
+    T2Polygon.InsertHoles(r, holes);
+  except
+    T2Contour.Del(holes);
+    T2Polygon.Del(r);
+    raise;
+  end;
 end;
 
 procedure RecalcCount(area: P2Polygon);
@@ -1194,6 +1386,18 @@ end;
 
 class procedure T2Polygon.InclParea(var list: P2Polygon; a: P2Polygon);
 begin
+  if a <> nil then
+  begin
+    if list = nil then
+      list := a
+    else
+    begin
+      a.b := list.b;
+      a.b.f := a;
+      a.f := list;
+      list.b := a;
+    end;
+  end;
 end;
 
 class procedure T2Polygon.InclPline(var list: P2Polygon; pline: P2Contour);
@@ -1201,7 +1405,18 @@ begin
 end;
 
 class procedure T2Polygon.InsertHoles(var list: P2Polygon; var holes: P2Contour);
+var
+  next: P2Contour;
 begin
+  if holes = nil then exit;
+  if list = nil then err(ecInvalidParameter);
+  while holes <> nil do
+  begin
+    next := holes.next;
+    holes.next := nil;
+    InclPline(list, holes);
+    holes := next;
+  end;
 end;
 
 function Chk(x: INT32): Boolean;
@@ -1220,7 +1435,7 @@ begin
     while pline <> nil do
     begin
       if Chk(pline.vMin.p2i.x) or Chk(pline.vMin.p2i.y) or
-        Chk(pline.vMax.p2i.x) or Chk(pline.vMax.p2i.y) then
+         Chk(pline.vMax.p2i.x) or Chk(pline.vMax.p2i.y) then
         exit(False);
       pline := pline.next;
     end;
