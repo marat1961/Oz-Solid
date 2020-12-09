@@ -63,14 +63,21 @@ type
     class function Ymin(const a, b: T2i): T2i; inline; static;
     // if a > b then a else b
     class function Ymax(const a, b: T2i): T2i; inline; static;
+    // Returns the cross product
     class function Cross(const vp, vc, vn: T2i): Int64; overload; inline; static;
+    // Returns the orientation vectors
     class function IsLeft(const v, v0, v1: T2i): Boolean; inline; static;
-
+    // self + p
     function Plus(const p: T2i): T2i;
+    // self - p
     function Minus(const p: T2i): T2i;
+    // self * s
     function ScaledBy(s: Integer): T2i;
+    // Returns the dot product
     function Dot(const p: T2i): Int64;
+    // Returns the cross product
     function Cross(const p: T2i): Int64; overload;
+    // self = p
     function Equals(const p: T2i): Boolean;
   end;
 
@@ -158,7 +165,7 @@ type
     ORIENT   = $0100;
     DIR      = $0100;
     INV      = $0000;
-    P_MASK =  $0003; // pline label mask
+    P_MASK   = $0003; // pline label mask
   type
     PLABEL = (
       P_OUTSIDE,
@@ -182,14 +189,15 @@ type
     function IsOuter: Boolean;
     function Copy(makeLinks: Boolean = False): P2Contour;
     class procedure Incl(var pline: P2Contour; const g: T2i); static;
-    // calculate orientation and bounding box
+    // Calculate orientation and bounding box
     // removes points lying on the same line
     // returns if contour is valid, i.e. Count >= 3 and Area <> 0
     function Prepare: Boolean;
-    // invert contour
+    // Invert contour
     procedure Invert;
-    // put pline either into area or holes depending on its orientation
-    class procedure Put(pline: P2Contour; var area: P2Polygon; var holes: P2Contour); static;
+    // Put pline either into area or holes depending on its orientation
+    class procedure Put(pline: P2Contour;
+      var area: P2Polygon; var holes: P2Contour); static;
   end;
 
 {$EndRegion}
@@ -1305,17 +1313,58 @@ begin
   until pa = area;
 end;
 
-procedure LabelPline(pline: P2Contour; other: P2Polygon);
+procedure LabelIsected(pline: P2Contour; other: P2Polygon);
 begin
 end;
 
-procedure LabelParea(area: P2Polygon; other: P2Polygon);
+procedure LabelPline(pline: P2Contour; other: P2Polygon);
+begin
+  if pline.GetPlineLabel = P_ISECTED then
+    LabelIsected(pline, other)
+  else if PlineInParea(pline, other) then
+    pline.Flags := pline.SetBits(T2Contour.P_MASK, Ord(P_INSIDE))
+  else
+    pline.Flags := pline.SetBits(T2Contour.P_MASK, Ord(P_OUTSIDE));
+end;
+
+procedure LabelParea(area, other: P2Polygon);
+var
+  pa: P2Polygon;
+  pline: P2Contour;
+begin
+  pa := area;
+  repeat
+    pline := pa.cntr;
+    while pline <> nil do
+    begin
+      LabelPline(pline, other);
+      pline := pline.next;
+    end;
+    pa := pa.f;
+  until pa = area;
+end;
+
+procedure CollectPline(pline: P2Contour; var r: P2Polygon; var holes: P2Contour;
+  Op: T2Polygon.TBoolOp);
 begin
 end;
 
 procedure CollectParea(area: P2Polygon; var r: P2Polygon; var holes: P2Contour;
   Op: T2Polygon.TBoolOp);
+var
+  pa: P2Polygon;
+  pline: P2Contour;
 begin
+  pa := area;
+  repeat
+    pline := pa.cntr;
+    while pline <> nil do
+    begin
+      CollectPline(pline, r, holes, Op);
+      pline := pline.next;
+    end;
+    pa := pa.f;
+  until pa = area;
 end;
 
 procedure DoBoolean(a, b, r: P2Polygon; Op: T2Polygon.TBoolOp);
