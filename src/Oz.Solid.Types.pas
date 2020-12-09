@@ -80,7 +80,12 @@ type
 {$Region 'TsdSegment'}
 
   TsdSegment = record
-    A, B: T2dPoint;
+  var
+    a, b: T2dPoint;
+  public
+    function Vector: T2dPoint; inline;
+    function Cross: Double;
+    function IntersectsLines(const line: TsdSegment; var cross: T2dPoint): Boolean;
   end;
 
 {$EndRegion}
@@ -295,12 +300,15 @@ function Bernstein(k, deg: Integer; t: Double): Double;
 function BernsteinDerivative(k, deg: Integer; t: Double): Double;
 function GetNormal(v: TsdVector): TsdVector;
 
-// Return the intersection point of lines
+// Return intersection point of the segments
 function IntersectionOfLines(ax0, ay0, dxa, dya, bx0, by0, dxb, dyb: Double;
   var cx, cy: Double): Boolean;
-// Return intersection point of the segments
-function IntersectionOfSegments(const s1, e1, s2, e2: T2dPoint;
+function IntersectsSegments(const s1, e1, s2, e2: T2dPoint;
   var cross: T2dPoint): Boolean;
+// Return the intersection point of lines
+function IntersectsLines(const s1, e1, s2, e2: T2dPoint;
+  var cross: T2dPoint): Boolean;
+
 {$EndRegion}
 
 implementation
@@ -410,7 +418,7 @@ begin
   result := True;
 end;
 
-function IntersectionOfSegments(const s1, e1, s2, e2: T2dPoint;
+function IntersectsSegments(const s1, e1, s2, e2: T2dPoint;
   var cross: T2dPoint): Boolean;
 var
   dp1, dp2: T2dPoint;
@@ -436,6 +444,24 @@ begin
     cross := s1.Plus(dp1.ScaledBy(u));
     Result := True;
   end;
+end;
+
+function IntersectsLines(const s1, e1, s2, e2: T2dPoint;
+  var cross: T2dPoint): Boolean;
+var
+  vs, vl:  T2dPoint;
+  c, cs, cl: Double;
+begin
+  vs := e1.Minus(s1);
+  vl := e2.Minus(s2);
+  c := (vs.x * vl.y) - (vs.y * vl.x);
+  if Abs(c) < 1e-6 then
+    exit(False);
+  cs := s1.Cross(e1);
+  cl := s2.Cross(e2);
+  cross.x := ((cs * vl.x) - (cl * vs.x)) / c;
+  cross.y := ((cs * vl.y) - (cl * vs.y)) / c;
+  Result := True;
 end;
 
 {$EndRegion}
@@ -503,7 +529,7 @@ end;
 
 function T2dPoint.Cross(const p: T2dPoint): Double;
 begin
-  Result := (Self.x * p.y) - (Self.y * p.x);
+  Result := x * p.y - y * p.x;
 end;
 
 function T2dPoint.DistanceTo(const p: T2dPoint): Double;
@@ -601,6 +627,38 @@ begin
   end;
   Result.x := x * v / m;
   Result.y := y * v / m;
+end;
+
+{$EndRegion}
+
+{$Region 'TsdSegment'}
+
+function TsdSegment.Vector: T2dPoint;
+begin
+  Result := b.Minus(a);
+end;
+
+function TsdSegment.Cross: Double;
+begin
+  Result := (a.x * b.y) - (a.y * b.x);
+end;
+
+function TsdSegment.IntersectsLines(const line: TsdSegment;
+  var cross: T2dPoint): Boolean;
+var
+  vs, vl:  T2dPoint;
+  c, cs, cl: Double;
+begin
+  vs := Self.Vector;
+  vl := line.Vector;
+  c := (vs.x * vl.y) - (vs.y * vl.x);
+  if Abs(c) < 1e-6 then
+    exit(False);
+  cs := Self.Cross;
+  cl := line.Cross;
+  cross.x := ((cs * vl.x) - (cl * vs.x)) / c;
+  cross.y := ((cs * vl.y) - (cl * vs.y)) / c;
+  Result := True;
 end;
 
 {$EndRegion}
