@@ -148,6 +148,10 @@ type
   private
     procedure SetVnodeLabel(value: ELABEL);
     function GetVnodeLabel: ELABEL;
+    function IsFirst: Boolean;
+    function IsMarked: Boolean;
+    procedure SetMarked;
+    procedure SetFirst(value: Boolean);
   public
     class function New(const pt: T2i): P2Vertex; static;
     procedure Incl(after: P2Vertex);
@@ -351,7 +355,7 @@ begin
   if outer = nil then exit(False);
   if not GridInBox(p^, outer) then exit(False);
   vn := outer.head;
-  inside := false;
+  inside := False;
   repeat
     vc := vn.v.p2i;
     vp := vn.prev.v.p2i;
@@ -428,6 +432,152 @@ begin
     Proceed: ;
     pa := pa.f;
   until pa = outer;
+  Result := False;
+end;
+
+{$EndRegion}
+
+{$Region 'Collect'}
+type
+
+  DIRECTION = (FORW, BACKW);
+
+  TEdgeRule = function(const vn: P2Vertex; dir: DIRECTION): Boolean;
+  TCntrRule = function(const c: P2Contour; dir: DIRECTION): Boolean;
+
+function EdgeRuleUn(const vn: P2Vertex; dir: DIRECTION): Boolean;
+var
+  nLabel: T2Vertex.ELABEL;
+begin
+  nLabel := vn.GetVnodeLabel;
+  if nLabel in [E_OUTSIDE, E_SHARED1] then
+  begin
+    dir := FORW;
+    exit(True);
+  end;
+  Result := False;
+end;
+
+function EdgeRuleIs(const vn: P2Vertex; dir: DIRECTION): Boolean;
+var
+  nLabel: T2Vertex.ELABEL;
+begin
+  nLabel := vn.GetVnodeLabel;
+  if nLabel in [E_INSIDE, E_SHARED1] then
+  begin
+    dir := FORW;
+    exit(True);
+  end;
+  Result := False;
+end;
+
+function EdgeRuleSb(const vn: P2Vertex; dir: DIRECTION): Boolean;
+var
+  nLabel: T2Vertex.ELABEL;
+begin
+  nLabel := vn.GetVnodeLabel;
+  if vn.IsFirst then
+  begin
+    if nLabel in [E_OUTSIDE, E_SHARED2] then
+    begin
+      dir := FORW;
+      exit(True);
+    end;
+  end
+  else
+  begin
+    if nLabel in [E_INSIDE, E_SHARED2] then
+    begin
+      dir := BACKW;
+      exit(True);
+    end;
+  end;
+  Result := False;
+end;
+
+function EdgeRuleXr(const vn: P2Vertex; dir: DIRECTION): Boolean;
+var
+  nLabel: T2Vertex.ELABEL;
+begin
+  nLabel := vn.GetVnodeLabel;
+  if nLabel = E_OUTSIDE then
+  begin
+    dir := FORW;
+    exit(True);
+  end
+  else if nLabel = E_INSIDE then
+  begin
+    dir := BACKW;
+    exit(True);
+  end;
+  Result := False;
+end;
+
+function CntrRuleUn(const pline: P2Contour; dir: DIRECTION): Boolean;
+var
+  nLabel: T2Contour.PLABEL;
+begin
+  nLabel := pline.GetPlineLabel;
+  if nLabel = P_OUTSIDE then
+  begin
+    dir := FORW;
+    exit(True);
+  end;
+  Result := False;
+end;
+
+function CntrRuleIs(const pline: P2Contour; dir: DIRECTION): Boolean;
+var
+  nLabel: T2Contour.PLABEL;
+begin
+  nLabel := pline.GetPlineLabel;
+  if nLabel = P_INSIDE then
+  begin
+    dir := FORW;
+    exit(True);
+  end;
+  Result := False;
+end;
+
+function CntrRuleSb(const pline: P2Contour; dir: DIRECTION): Boolean;
+var
+  nLabel: T2Contour.PLABEL;
+begin
+  nLabel := pline.GetPlineLabel;
+  if pline.head.IsFirst then
+  begin
+    if nLabel = P_OUTSIDE then
+    begin
+      dir := FORW;
+      exit(True);
+    end;
+  end
+  else
+  begin
+    if nLabel = P_INSIDE then
+    begin
+      dir := BACKW;
+      exit(True);
+    end;
+  end;
+  Result := False;
+end;
+
+function CntrRuleXr(const pline: P2Contour; dir: DIRECTION): Boolean;
+var
+  nLabel: T2Contour.PLABEL;
+begin
+  nLabel := pline.GetPlineLabel;
+  if nLabel = P_OUTSIDE then
+  begin
+    dir := FORW;
+    exit(True);
+  end
+  else if nLabel = P_INSIDE then
+  begin
+    dir := BACKW;
+    exit(True);
+  end;
   Result := False;
 end;
 
@@ -648,6 +798,29 @@ end;
 function T2Vertex.GetVnodeLabel: ELABEL;
 begin
   Result := ELABEL(Flags and E_MASK);
+end;
+
+function T2Vertex.IsFirst: Boolean;
+begin
+  Result := (Flags and E_FST) <> 0;
+end;
+
+function T2Vertex.IsMarked: Boolean;
+begin
+  Result := (Flags and E_MARK) <> 0;
+end;
+
+procedure T2Vertex.SetFirst(value: Boolean);
+begin
+  if value then
+    Flags := Flags or E_FST
+  else
+    Flags := Flags and not E_FST
+end;
+
+procedure T2Vertex.SetMarked;
+begin
+  Flags := Flags or E_MARK;
 end;
 
 {$EndRegion}
@@ -1139,12 +1312,12 @@ begin
   end;
   // tie into ring all segments which point (X,Y) was inserted into
   pHeap := PVertexLinkHeap(parm);
-  i := pHeap.Get(true);
-  o := pHeap.Get(true);
-  i.SetIn(true);
-  i.SetValid(false);
-  o.SetIn(false);
-  o.SetValid(false);
+  i := pHeap.Get(True);
+  o := pHeap.Get(True);
+  i.SetIn(True);
+  i.SetValid(False);
+  o.SetIn(False);
+  o.SetValid(False);
   i.vn := vn;
   o.vn := vn;
   if list = nil then
@@ -1209,7 +1382,7 @@ begin
       begin
         begin
           t := r;
-          while true do
+          while True do
           begin
             if (nP > 0) and (nQ < 1) or (TVertexLink.Compare(p, q) <= 0) then
             begin
@@ -1270,7 +1443,7 @@ begin
             nQ := n;
         end;
       end;
-      r.nxt := 0; s.nxt := 0; n := n * 2;
+      r.nxt := nil; s.nxt := nil; n := n * 2;
     end;
     begin
       p := elm[2].nxt;
@@ -1348,7 +1521,7 @@ begin
             nQ := n;
         end;
       end;
-      r.nxt := 0; s.nxt := 0;
+      r.nxt := nil; s.nxt := nil;
       n := n * 2;
     end;
   end;
@@ -1469,14 +1642,14 @@ begin
           LnkUntie(l.n);
           continue;
         end;
-        // now we have only true intersections make valid doubly linked list
+        // now we have only True intersections make valid doubly linked list
 
         pline.SetPlineLabel(P_ISECTED);
         s := l;
         q := s.n;
         while q <> nil do
         begin
-          s.SetValid(true);
+          s.SetValid(True);
           q.p := s;
           s := s.n;
           q := s.n;
@@ -1491,8 +1664,119 @@ begin
   until pa = area;
 end;
 
-procedure LabelIsected(pline: P2Contour; other: P2Polygon);
+function DoShared(lnk, chk: PVertexLink): Boolean;
+var
+  nLabel: T2Vertex.ELABEL;
+  vn0, vn1: P2Vertex;
 begin
+  if (lnk.dx <> chk.dx) or (lnk.dy <> chk.dy) then
+    exit(False);
+
+  // we have a pair of shared edges
+  if chk.IsIn = lnk.IsIn then
+  begin
+    nLabel := E_SHARED1;
+    if chk.IsIn then
+    begin
+      vn0 := chk.vn.prev;
+      vn1 := lnk.vn.prev;
+    end
+    else
+    begin
+      vn0 := chk.vn;
+      vn1 := lnk.vn;
+    end;
+  end
+  else
+  begin
+    nLabel := E_SHARED2;
+    if chk.IsIn then
+    begin
+      vn0 := chk.vn.prev;
+      vn1 := lnk.vn;
+    end
+    else
+    begin
+      vn0 := chk.vn;
+      vn1 := lnk.vn.prev;
+    end;
+  end;
+  vn0.SetVnodeLabel(nLabel);
+  vn1.SetVnodeLabel(nLabel);
+  vn0.t.lnk.o.shared := vn1;
+  vn1.t.lnk.o.shared := vn0;
+  Result := True;
+end;
+
+function DoLabel(vn: P2Vertex; lnk: PVertexLink): Boolean;
+var
+  n, vl, p: PVertexLink;
+  bInside: Boolean;
+begin
+  n := nil;
+  vl := lnk.n;
+  while vl <> lnk do
+  begin
+    if vl.IsFirst <> lnk.IsFirst then
+    begin
+      n := vl;
+      break;
+    end;
+    vl := vl.n;
+  end;
+  if n = nil then
+    exit(False);
+  p := nil;
+  vl := lnk.p;
+  while vl <> lnk do
+  begin
+    if vl.IsFirst <> lnk.IsFirst then
+    begin
+      p := vl;
+      break;
+    end;
+    vl := vl.p;
+  end;
+  assert((p <> nil) and (n <> p));
+  if DoShared(lnk, n) or DoShared(lnk, p) then
+    exit(True);
+
+  // check if lnk lies inside (p, n)
+  bInside := n.IsIn and not p.IsIn;
+  if bInside then
+    vn.SetVnodeLabel(E_INSIDE)
+  else
+    vn.SetVnodeLabel(E_OUTSIDE);;
+  Result := True;
+end;
+
+procedure LabelIsected(pline: P2Contour; other: P2Polygon);
+var
+  vn: P2Vertex;
+  nLabel, nPrev: T2Vertex.ELABEL;
+  lnk: PVertexLink;
+begin
+  vn := pline.head;
+  repeat
+    nLabel := vn.GetVnodeLabel;
+    if nLabel <> E_UNKNOWN then continue;
+
+    lnk := nil;
+    if vn.t.lnk.o <> nil then
+      lnk := vn.t.lnk.o
+    else if vn.next.t.lnk.i <> nil then
+      lnk := vn.next.t.lnk.i;
+    if (lnk <> nil) and DoLabel(vn, lnk) then continue;
+
+    nPrev := vn.prev.GetVnodeLabel;
+    if (nPrev <> E_UNKNOWN) and (nPrev <> E_SHARED3) then
+      vn.SetVnodeLabel(nPrev)
+    else if GridInParea(@vn.v.p2i, other) then
+      vn.SetVnodeLabel(E_INSIDE)
+    else
+      vn.SetVnodeLabel(E_OUTSIDE);
+    vn := vn.next;
+  until vn = pline.head;
 end;
 
 procedure LabelPline(pline: P2Contour; other: P2Polygon);
@@ -1522,9 +1806,97 @@ begin
   until pa = area;
 end;
 
+function Jump(cur: P2Vertex; var cdir: DIRECTION; eRule: TEdgeRule): P2Vertex;
+begin
+end;
+
+procedure CollectVnode(start: P2Vertex; var result: P2Contour;
+  edgeRule: TEdgeRule; initdir: DIRECTION);
+var
+  V, E: P2Vertex;
+  dir: DIRECTION;
+begin
+  V := start;
+  if initdir = FORW then
+    E := start
+  else
+    E := start.prev;
+    dir := initdir;
+    repeat
+      T2Contour.Incl(result, V.v.p2i);
+      SetMarked(E);
+      // for SHARED edge mark its neighbour
+      if (E.GetVnodeLabel = E_SHARED1) or (E.GetVnodeLabel = E_SHARED2) then
+        SetMarked(E.t.lnk.o.shared);
+      // go forward, try to jump
+      if dir = FORW then
+      begin
+        V := Jump(V.next, dir, edgeRule);
+        E := V;
+      end
+      else
+      begin
+        V := Jump(V.prev, dir, edgeRule);
+        E := V.prev;
+      end;
+      assert(E.GetVnodeLabel <> E_SHARED3);
+    until IsMarked(E);
+end;
+
 procedure CollectPline(pline: P2Contour; var r: P2Polygon; var holes: P2Contour;
   Op: T2Polygon.TBoolOp);
+const
+  edgeRule: array [T2Polygon.TBoolOp] of TEdgeRule = (
+    EdgeRuleUn,  // PBO_UNITE,
+    EdgeRuleIs,  // PBO_ISECT,
+    EdgeRuleSb,  // PBO_SUB,
+    EdgeRuleXr); // PBO_XOR
+  cntrRule: array [T2Polygon.TBoolOp] of TCntrRule = (
+    CntrRuleUn,  // PBO_UNITE,
+    CntrRuleIs,  // PBO_ISECT,
+    CntrRuleSb,  // PBO_SUB,
+    CntrRuleXr); // PBO_XOR
+var
+  nLabel: T2Contour.PLABEL;
+  vn: P2Vertex;
+  dir: DIRECTION;
+  p, copy: P2Contour;
 begin
+  nLabel := pline.GetPlineLabel;
+  if nLabel = P_ISECTED then
+  begin
+    vn := pline.head;
+    repeat
+      if not IsMarked(vn) and edgeRule[Op](vn, dir) then
+      begin
+        p := nil;
+        if dir = FORW then
+          CollectVnode(vn, p, edgeRule[Op], dir)
+        else
+          CollectVnode(vn.next, p, edgeRule[Op], dir);
+        if p.Prepare then
+          T2Contour.Put(p, r, holes)
+        else
+          T2Contour.Del(p);
+      end;
+      vn := vn.next;
+    until vn = pline.head;
+  end
+  else
+  begin
+    if cntrRule[Op](pline, dir) then
+    begin
+      copy := pline.Copy;
+      if not copy.Prepare then
+        T2Contour.Del(copy)
+      else
+      begin
+        if dir = BACKW then
+          copy.Invert;
+        T2Contour.Put(copy, r, holes);
+      end;
+    end;
+  end;
 end;
 
 procedure CollectParea(area: P2Polygon; var r: P2Polygon; var holes: P2Contour;
@@ -1583,8 +1955,8 @@ begin
   aSegms := nil;
   Result := ecOk;
   try
-    InitArea(a, true);
-    InitArea(b, false);
+    InitArea(a, True);
+    InitArea(b, False);
     begin
       nSegms := VertCnt(a) + VertCnt(b);
       GetMem(aSegms, nSegms * sizeof(T2Segment));
@@ -1627,8 +1999,48 @@ begin
   end;
 end;
 
-class procedure T2Polygon.InclPline(var list: P2Polygon; pline: P2Contour);
+procedure InclPareaPline(p: P2Polygon; c: P2Contour);
 begin
+  assert(c.next = nil);
+  if c.IsOuter then
+  begin
+    assert(p.cntr = nil);
+    p.cntr := c;
+  end
+  else
+  begin
+    assert(p.cntr <> nil);
+    c.next := p.cntr.next;
+    p.cntr.next := c;
+  end;
+end;
+
+class procedure T2Polygon.InclPline(var list: P2Polygon; pline: P2Contour);
+var
+  t, pa: P2Polygon;
+begin
+  assert((pline <> nil) and (pline.next = nil));
+  if pline.IsOuter then
+  begin
+    t := New();
+    InclParea(list, t);
+  end
+  else
+  begin
+    assert(list <> nil);
+    // find the smallest container for the hole
+    t := nil;
+    pa := list;
+    repeat
+      if PlineInPline(pline, pa.cntr) and (t = nil) or
+         PlineInPline(pa.cntr, t.cntr) then
+        t := pa;
+      pa := pa.f;
+    until pa = list;
+    // couldn't find a container for the hole
+    if t = nil then err(ecInvalidParameter);
+  end;
+  InclPareaPline(t, pline);
 end;
 
 class procedure T2Polygon.InsertHoles(var list: P2Polygon; var holes: P2Contour);
