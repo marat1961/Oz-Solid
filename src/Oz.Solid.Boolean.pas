@@ -219,7 +219,8 @@ type
 
 {$Region 'T2Polygon: Polygon area'}
 
-  TErrorNumber = (ecOk, ecNotEnoughMemory, ecIO, ecInvalidParameter, ecBool);
+  TErrorNumber = (ecOk, ecNotEnoughMemory, ecIO, ecInvalidParameter,
+    ecBool, ecTriangulate);
 
   T2Polygon = record
   type
@@ -239,7 +240,7 @@ type
     // PolyBoolean0 operates destructively on a and b
     class function Bool0(const a, b: P2Polygon; var r: P2Polygon;
       Op: TBoolOp): TErrorNumber; static;
-    class function Triangulate(area: P2Polygon): Integer; static;
+    class function Triangulate(area: P2Polygon): TErrorNumber; static;
     class procedure InclParea(var list: P2Polygon; a: P2Polygon); static;
     class procedure InclPline(var list: P2Polygon; pline: P2Contour); static;
     class procedure InsertHoles(var list: P2Polygon; var holes: P2Contour); static;
@@ -257,7 +258,7 @@ function PlineInParea(const c: P2Contour; const outer: P2Polygon): Boolean;
 
 implementation
 
-{$Region 'T2Segment'}
+{$Region 'TVertexLinkHeap'}
 
 type
   PVertexLinkHeap = ^TVertexLinkHeap;
@@ -1807,7 +1808,25 @@ begin
 end;
 
 function Jump(cur: P2Vertex; var cdir: DIRECTION; eRule: TEdgeRule): P2Vertex;
+var
+  start, n: PVertexLink;
 begin
+  if cdir = FORW  then
+    start := cur.t.lnk.i
+  else
+    start := cur.t.lnk.o;
+  if start <> nil then
+  begin
+    n := start.p;
+    while n <> start do
+    begin
+      if (start.dx = n.dx) and (start.dy = n.dy) then continue;
+      if n.IsIn and eRule(n.vn.prev, cdir) or not n.IsIn and eRule(n.vn, cdir) then
+        exit(n.vn);
+      n := n.p;
+    end;
+  end;
+  Result := cur;
 end;
 
 procedure CollectVnode(start: P2Vertex; var result: P2Contour;
@@ -1938,7 +1957,28 @@ begin
 end;
 
 procedure RecalcCount(area: P2Polygon);
+var
+  pa: P2Polygon;
+  pline: P2Contour;
+  vn: P2Vertex;
+  nCount: Cardinal;
 begin
+  pa := area;
+  repeat
+    pline := pa.cntr;
+    while pline <> nil do
+    begin
+      vn := pline.head;
+      nCount := 0;
+      repeat
+        Inc(nCount);
+        vn := vn.next;
+      until vn = pline.head;
+      pline.Count := nCount;
+      pline := pline.next;
+    end;
+    pa := pa.f;
+  until pa = area;
 end;
 
 class function T2Polygon.Bool0(const a, b: P2Polygon; var r: P2Polygon;
@@ -1979,8 +2019,22 @@ begin
   FreeMem(aSegms);
 end;
 
-class function T2Polygon.Triangulate(area: P2Polygon): Integer;
+class function T2Polygon.Triangulate(area: P2Polygon): TErrorNumber;
+var
+//  g: Tb;
+  pa: P2Polygon;
 begin
+  Result := ecOk;
+  if area = nil then exit;
+  try
+    pa := area;
+    repeat
+//      g.Triangulate(pa);
+      pa := pa.f;
+    until pa = area;
+  except
+    Result := ecTriangulate;
+  end;
 end;
 
 class procedure T2Polygon.InclParea(var list: P2Polygon; a: P2Polygon);
