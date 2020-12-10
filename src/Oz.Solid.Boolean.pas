@@ -114,8 +114,8 @@ type
     function IsValid: Boolean;
     procedure SetFirst(value: Boolean);
     function IsFirst: Boolean;
-    function nxt: PVertexLink;
     class function Compare(const a, b: PVertexLink): Integer; static;
+    property nxt: PVertexLink read n write n;
   end;
 
   TemporaryFields = record
@@ -577,11 +577,6 @@ end;
 function TVertexLink.IsFirst: Boolean;
 begin
   Result := fFirst in m_flags;
-end;
-
-function TVertexLink.nxt: PVertexLink;
-begin
-  Result := n;
 end;
 
 function GetQuadrant(dx, dy: Integer): Integer;
@@ -1173,9 +1168,192 @@ begin
   vn.t.lnk.o := o;
 end;
 
-procedure MergeSort(var head: PVertexLink);
+function MergeSort(var head: PVertexLink): PVertexLink;
+var
+  p, q, r, s, t: PVertexLink;
+  elm: array [0..3] of PVertexLink;
+  n: Cardinal;
+  nP, nQ: Integer;
 begin
+  p := Head;
+  if p = nil then
+    exit(nil);
+  if p.nxt = nil then
+    exit(p);
 
+  elm[0].nxt := p; q := p.nxt;
+  elm[1].nxt := q; r := q.nxt;
+
+  while r <> nil do
+  begin
+    p := p.nxt; r := r.nxt;
+    if r = nil then break;
+    q := r; q.nxt := r; r := r.nxt;
+  end;
+  p.nxt := nil; q.nxt := nil;
+
+  n := 1;
+
+  while True do
+  begin
+    begin
+      p := elm[0].nxt;
+      q := elm[1].nxt;
+      if q = nil then break;
+      r := elm[2];
+      s := elm[3];
+
+      nP := n;
+      nQ := n;
+      while True do
+      begin
+        begin
+          t := r;
+          while true do
+          begin
+            if (nP > 0) and (nQ < 1) or (TVertexLink.Compare(p, q) <= 0) then
+            begin
+              t := p; t.nxt := p; p := p.nxt;
+              if p = nil then nP := -1 else Dec(nP);
+            end
+            else
+            begin
+              if nQ < 1 then break;
+              t := q; t.nxt := q; q := q.nxt;
+              if q = nil then nQ := -1 else Dec(nQ);
+            end;
+          end;
+          r := t;
+        end;
+        if nP < 0 then
+        begin
+          if nQ >= 0 then
+            nQ := n
+          else
+            break;
+        end
+        else
+        begin
+          nP := n;
+          if nQ >= 0 then
+            nQ := n;
+        end;
+        begin
+          t := s;
+          while True do
+          begin
+            if (nP > 0) and (nQ < 1) or (TVertexLink.Compare(p, q) <= 0) then
+            begin
+              t := p; t.nxt := p; p := p.nxt;
+              if p = nil then nP := -1 else Dec(nP);
+            end
+            else
+            begin
+              if nQ < 1 then break;
+              t := q; t.nxt := q; q := q.nxt;
+              if q = nil then nQ := -1 else Dec(nQ);
+            end;
+          end;
+          s := t;
+        end;
+        if nP < 0 then
+        begin
+          if nQ >= 0 then
+            nQ := n
+          else
+            break;
+        end
+        else
+        begin
+          nP := n;
+          if nQ >= 0 then
+            nQ := n;
+        end;
+      end;
+      r.nxt := 0; s.nxt := 0; n := n * 2;
+    end;
+    begin
+      p := elm[2].nxt;
+      q := elm[3].nxt;
+      if q = nil then
+        break;
+      r := elm[0];
+      s := elm[1];
+      nP := n;
+      nQ := n;
+      while True do
+      begin
+        begin
+          t := r;
+          while True do
+          begin
+            if (nP > 0) and (nQ < 1) or (TVertexLink.Compare(p, q) <= 0) then
+            begin
+              t := p; t.nxt := p; p := p.nxt;
+              if p = nil then nP := -1 else Dec(nP);
+            end
+            else
+            begin
+              if nQ < 1 then
+                break;
+              t := q; t.nxt := q; q := q.nxt;
+              if q = nil then nQ := -1 else Dec(nQ);
+            end;
+          end;
+          r := t;
+        end;
+        if nP < 0 then
+        begin
+          if nQ >= 0 then
+            nQ := n
+          else
+            break;
+        end
+        else
+        begin
+          nP := n;
+          if nQ >= 0 then
+            nQ := n;
+        end;
+        begin
+          t := s;
+          while True do
+          begin
+            if (nP > 0) and (nQ < 1) or (TVertexLink.Compare(p, q) <= 0) then
+            begin
+              t := p; t.nxt := p; p := p.nxt;
+              if p = nil then nP := -1 else Dec(nP);
+            end
+            else
+            begin
+              if nQ < 1 then
+                break;
+              t := q; t.nxt := q; q := q.nxt;
+              if q = nil then nQ := -1 else Dec(nQ);
+            end;
+          end;
+          s := t;
+        end;
+        if nP < 0 then
+        begin
+          if nQ >= 0 then
+            nQ := n
+          else
+            break;
+        end
+        else
+        begin
+          nP := n;
+          if nQ >= 0 then
+            nQ := n;
+        end;
+      end;
+      r.nxt := 0; s.nxt := 0;
+      n := n * 2;
+    end;
+  end;
+  Head := p;
+  Result := r;
 end;
 
 function HasShared3(const a: PVertexLink): Boolean;
