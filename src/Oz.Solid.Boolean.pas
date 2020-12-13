@@ -22,64 +22,20 @@ interface
 {$Region 'Uses'}
 
 uses
-  System.Classes, System.SysUtils, System.Types, System.UITypes, System.Math,
-  System.Math.Vectors, Oz.SGL.Heap, Oz.SGL.Collections, Oz.Solid.Types;
+  Oz.SGL.Heap,
+  Oz.SGL.Collections,
+  Oz.Solid.VectorInt,
+  Oz.Solid.Types;
 
 {$EndRegion}
 
 {$T+}
-
-const
-  // ranges for the integer coordinates
-  INT20_MAX = 524287;
-  INT20_MIN = -524288;
 
 {$Region 'Pointers'}
 
 type
   P2Polygon = ^T2Polygon;
   P2Contour = ^T2Contour;
-
-{$EndRegion}
-
-{$Region 'T2i'}
-
-  P2i = ^T2i;
-  T2i = record
-  var
-    x, y: Integer;
-  public
-    // t lies inside [a, b)
-    class function AngleInside(const t, a, b: T2i): Boolean; inline; static;
-    // a > b
-    class function Gt(const a, b: T2i): Boolean; inline; static;
-    // a < b
-    class function Ls(const a, b: T2i): Boolean; inline; static;
-    // a >= b
-    class function Ge(const a, b: T2i): Boolean; inline; static;
-    // a <= b
-    class function Le(const a, b: T2i): Boolean; inline; static;
-    // if a < b then a else b
-    class function Ymin(const a, b: T2i): T2i; inline; static;
-    // if a > b then a else b
-    class function Ymax(const a, b: T2i): T2i; inline; static;
-    // Returns the cross product
-    class function Cross(const vp, vc, vn: T2i): Int64; overload; inline; static;
-    // Returns the orientation vectors
-    class function IsLeft(const v, v0, v1: T2i): Boolean; inline; static;
-    // self + p
-    function Plus(const p: T2i): T2i;
-    // self - p
-    function Minus(const p: T2i): T2i;
-    // self * s
-    function ScaledBy(s: Integer): T2i;
-    // Returns the dot product
-    function Dot(const p: T2i): Int64;
-    // Returns the cross product
-    function Cross(const p: T2i): Int64; overload;
-    // self = p
-    function Equals(const p: T2i): Boolean;
-  end;
 
 {$EndRegion}
 
@@ -262,11 +218,7 @@ implementation
 
 type
   PVertexLinkHeap = ^TVertexLinkHeap;
-  TVertexLinkHeap = record
-    region: TSegmentedRegion;
-    constructor From(BlockSize: Cardinal);
-    function Get(Clear: Boolean): PVertexLink;
-  end;
+  TVertexLinkHeap = TObjectHeap<TVertexLink>;
 
 {$EndRegion}
 
@@ -580,111 +532,6 @@ begin
     exit(True);
   end;
   Result := False;
-end;
-
-{$EndRegion}
-
-{$Region 'T2i'}
-
-class function T2i.AngleInside(const t, a, b: T2i): Boolean;
-begin
-  if a.Cross(b) >= 0 then
-  begin
-    if (a.Cross(t) >= 0) and (t.Cross(b) > 0) then
-      exit(True);
-  end
-  else
-  begin
-    if (a.Cross(t) >= 0) or (t.Cross(b) > 0) then
-      exit(True);
-  end;
-  Result := False;
-end;
-
-class function T2i.Gt(const a, b: T2i): Boolean;
-begin
-  Result := (a.y > b.y) or (a.y = b.y) and (a.x > b.x);
-end;
-
-class function T2i.Ls(const a, b: T2i): Boolean;
-begin
-  Result := (a.y < b.y) or (a.y = b.y) and (a.x < b.x);
-end;
-
-class function T2i.Ge(const a, b: T2i): Boolean;
-begin
-  Result := (a.y > b.y) or (a.y = b.y) and (a.x >= b.x);
-end;
-
-class function T2i.Le(const a, b: T2i): Boolean;
-begin
-  Result := (a.y < b.y) or (a.y = b.y) and (a.x <= b.x);
-end;
-
-class function T2i.Ymin(const a, b: T2i): T2i;
-begin
-  if Ls(a, b) then
-    Result := a
-  else
-    Result := b;
-end;
-
-class function T2i.Ymax(const a, b: T2i): T2i;
-begin
-  if Gt(a, b) then
-    Result := a
-  else
-    Result := b;
-end;
-
-class function T2i.Cross(const vp, vc, vn: T2i): Int64;
-begin
-   Result := vp.Minus(vc).Cross(vn.Minus(vc));
-end;
-
-class function T2i.IsLeft(const v, v0, v1: T2i): Boolean;
-begin
-  if v1.y = v.y then
-    exit(v.x < v1.x);
-  if v0.y = v.y then
-    exit(v.x < v0.x);
-  if ls(v1, v0) then
-    Result := Cross(v0, v1, v) > 0
-  else
-    Result := Cross(v1, v0, v) > 0;
-end;
-
-function T2i.Plus(const p: T2i): T2i;
-begin
-  Result.x := x + p.x;
-  Result.y := y + p.y;
-end;
-
-function T2i.Minus(const p: T2i): T2i;
-begin
-  Result.x := x - p.x;
-  Result.y := y - p.y;
-end;
-
-function T2i.ScaledBy(s: Integer): T2i;
-begin
-  Result.x := x * s;
-  Result.y := y * s;
-end;
-
-function T2i.Dot(const p: T2i): Int64;
-begin
-  Result := x * p.x + y * p.y;
-end;
-
-function T2i.Cross(const p: T2i): Int64;
-begin
-  Result := Int64(Self.x) * Int64(p.y) - Int64(Self.y) * Int64(p.x);
-end;
-
-function T2i.Equals(const p: T2i): Boolean;
-begin
-  Result := (Self.x = p.x) and (Self.y = p.y);
 end;
 
 {$EndRegion}
@@ -1986,7 +1833,7 @@ class function T2Polygon.Bool0(const a, b: P2Polygon; var r: P2Polygon;
 var
   aSegms, pSegm: P2Segment;
   nSegms: Cardinal;
-  pb: TVertexLinkHeap;
+  pb: TObjectHeap<TVertexLink>;
   bc: TBoolContext;
 begin
   r := nil;
@@ -2135,23 +1982,6 @@ begin
     pa := pa.f;
   until pa = @Self;
   Result := True;
-end;
-
-{$EndRegion}
-
-{$Region 'TVertexLinkHeap'}
-
-constructor TVertexLinkHeap.From(BlockSize: Cardinal);
-var
-  meta: PsgItemMeta;
-begin
-  meta := SysCtx.CreateMeta<TVertexLink>;
-  region.Init(meta, BlockSize);
-end;
-
-function TVertexLinkHeap.Get(Clear: Boolean): PVertexLink;
-begin
-  Result := region.AddItem;
 end;
 
 {$EndRegion}
