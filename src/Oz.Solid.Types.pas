@@ -58,6 +58,7 @@ type
     function DistanceTo(const p: T2dPoint): Double;
     function DistanceToLine(const p0, dp: T2dPoint; asSegment: Boolean): Double;
     function DistanceToLineSigned(const p0, dp: T2dPoint; asSegment: Boolean): Double;
+    function ClosestPointOnLine(const p0, dp: T2dPoint; asSegment: Boolean): T2dPoint;
     function Angle: Double;
     function AngleTo(const p: T2dPoint): Double;
     function Magnitude: Double;
@@ -306,7 +307,7 @@ function IntersectionOfLines(ax0, ay0, dxa, dya, bx0, by0, dxb, dyb: Double;
 function IntersectsSegments(const s1, e1, s2, e2: T2dPoint;
   var cross: T2dPoint): Boolean;
 // Return the intersection point of lines
-function IntersectsLines(const s1, e1, s2, e2: T2dPoint;
+function IntersectsLines(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
 
 {$EndRegion}
@@ -422,7 +423,7 @@ function IntersectsSegments(const s1, e1, s2, e2: T2dPoint;
   var cross: T2dPoint): Boolean;
 var
   dp1, dp2: T2dPoint;
-  a1, b1, d1, a2, b2, d2, u, s12s, s12e, s21s, s21e: Double;
+  a1, b1, d1, a2, b2, d2, s12s, s12e, s21s, s21e, t: Double;
 begin
   dp1 := e1.Minus(s1);
   dp2 := e2.Minus(s2);
@@ -440,27 +441,27 @@ begin
     Result := False
   else
   begin
-    u := s12s / (s12s - s12e);
-    cross := s1.Plus(dp1.ScaledBy(u));
+    t := s12s / (s12s - s12e);
+    cross := s1.Plus(dp1.ScaledBy(t));
     Result := True;
   end;
 end;
 
-function IntersectsLines(const s1, e1, s2, e2: T2dPoint;
+function IntersectsLines(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
 var
-  vs, vl:  T2dPoint;
-  c, cs, cl: Double;
+  ab, cd:  T2dPoint;
+  t, d1, d2: Double;
 begin
-  vs := e1.Minus(s1);
-  vl := e2.Minus(s2);
-  c := (vs.x * vl.y) - (vs.y * vl.x);
-  if Abs(c) < 1e-6 then
+  ab := a.Minus(b);
+  cd := c.Minus(d);
+  t := ab.Cross(cd);
+  if Abs(t) < 1e-6 then
     exit(False);
-  cs := s1.Cross(e1);
-  cl := s2.Cross(e2);
-  cross.x := ((cs * vl.x) - (cl * vs.x)) / c;
-  cross.y := ((cs * vl.y) - (cl * vs.y)) / c;
+  d1 := a.Cross(b);
+  d2 := c.Cross(d);
+  cross.x := (d1 * cd.x - d2 * ab.x) / t;
+  cross.y := (d1 * cd.y - d2 * ab.y) / t;
   Result := True;
 end;
 
@@ -575,12 +576,30 @@ begin
   Result := dist;
 end;
 
+function T2dPoint.ClosestPointOnLine(const p0, dp: T2dPoint;
+  asSegment: Boolean): T2dPoint;
+var
+  ap: T2dPoint;
+  t, m, d: Double;
+begin
+  ap := Self.Minus(p0);
+  m := dp.x * dp.x + dp.y * dp.y;
+  d := ap.x * dp.x + ap.y * dp.y;
+  t := d / m;
+  if asSegment then
+    if t < 0.0 then
+      t := 0.0
+    else if t > 1.0 then
+      t := 1.0;
+  Result := p0.Plus(dp.ScaledBy(t));
+end;
+
 function T2dPoint.Angle: Double;
 var
   a: Double;
 begin
   a := ArcTan2(y, x);
-  Result := PI + FMod(a - PI, 2 * PI);
+  Result := Pi + FMod(a - Pi, 2 * Pi);
 end;
 
 function T2dPoint.AngleTo(const p: T2dPoint): Double;
@@ -646,18 +665,18 @@ end;
 function TsdSegment.IntersectsLines(const line: TsdSegment;
   var cross: T2dPoint): Boolean;
 var
-  vs, vl:  T2dPoint;
-  c, cs, cl: Double;
+  s: TsdSegment;
+  c, d1, d2: Double;
 begin
-  vs := Self.Vector;
-  vl := line.Vector;
-  c := (vs.x * vl.y) - (vs.y * vl.x);
+  s.a := Self.Vector;
+  s.b := line.Vector;
+  c := s.Cross;
   if Abs(c) < 1e-6 then
     exit(False);
-  cs := Self.Cross;
-  cl := line.Cross;
-  cross.x := ((cs * vl.x) - (cl * vs.x)) / c;
-  cross.y := ((cs * vl.y) - (cl * vs.y)) / c;
+  d1 := Self.Cross;
+  d2 := line.Cross;
+  cross.x := (d1 * s.b.x - d2 * s.a.x) / c;
+  cross.y := (d1 * s.b.y - d2 * s.a.y) / c;
   Result := True;
 end;
 

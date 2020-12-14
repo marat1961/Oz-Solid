@@ -21,68 +21,108 @@ unit TestUtils;
 interface
 
 uses
-  TestFramework,
-  System.Classes,
-  System.Generics.Collections;
+  System.Classes, System.Math, TestFramework, Oz.Solid.Types;
 
-(*
-int main()
-{
-  static const GRID2 a1[4] =
-  { {-7, 8}, {-7, -3}, {2, -3}, {2, 8} };
-  static const GRID2 a2[4] =
-  { {-5, 6}, {0, 6}, {0, 0}, {-5, 0} };
-  static const GRID2 b[11] =
-  { {-5, -6}, {7,-6}, {7, 4}, {-5, 4}, {0, 0}, {0, 2},
-  {5, 2}, {5, -4}, {0, -4}, {0, 0}, {-5, 0} };
-  PAREA * A = NULL;
-  PAREA * B = NULL;
-  int     i;
-  PLINE2 * pline = NULL;
+{$Region 'Test2dPoint'}
 
-  // construct 1st polygon
-  for (i = 0; i < 4; i++)
+type
+  Test2dPoint = class(TTestCase)
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCollinearity;
+    procedure TestDistanceToLine;
+    procedure TestClosestPointOnLine;
+    procedure TestIntersectsLines;
+  end;
 
-  PLINE2::Incl(&pline, a1[i]);
-  pline->Prepare();
-  if (not pline->IsOuter()) // make sure the contour is outer
-  pline->Invert();
-  PAREA::InclPline(&A, pline);
-  pline = NULL;
-  for (i = 0; i < 4; i++)
+{$EndRegion}
 
-  PLINE2::Incl(&pline, a2[i]);
-  pline->Prepare();
-  if (pline->IsOuter()) // make sure the contour is a hole
-  pline->Invert();
-  PAREA::InclPline(&A, pline);
-  // construct 2nd polygon
-  pline = NULL;
-  for (i = 0; i < 11; i++)
-
-  PLINE2::Incl(&pline, b[i]);
-  pline->Prepare();
-  if (not pline->IsOuter()) // make sure the contour is outer
-  pline->Invert();
-  PAREA::InclPline(&B, pline);
-  // do Boolean operation XOR
-  PAREA * R = NULL;
-  int err = PAREA::Boolean(A, B, &R, PAREA::XR);
-
-  // triangulate R
-  err = PAREA::Triangulate(R);
-
-  // delete all polygons
-  PAREA::Del(&A);
-  PAREA::Del(&B);
-  PAREA::Del(&R);
-
-  return err;
-  }
-
-  *)
 implementation
 
+{$Region 'Test2dPoint'}
+
+procedure Test2dPoint.SetUp;
+begin
+  inherited;
+
+end;
+
+procedure Test2dPoint.TearDown;
+begin
+  inherited;
+
+end;
+
+procedure Test2dPoint.TestCollinearity;
+var
+  a, b, c: T2dPoint;
+  s: Double;
+begin
+  a := T2dPoint.From(0, 0);
+  b := T2dPoint.From(15, 15);
+  c := T2dPoint.From(10000, 10000);
+  s := b.Minus(a).Cross(c.Minus(a));
+  CheckTrue(Abs(s) <= 1e-6);
+  c := T2dPoint.From(500, 500.2);
+  s := b.Minus(a).Cross(c.Minus(a));
+  CheckTrue(Abs(s) > 1e-6);
+end;
+
+procedure Test2dPoint.TestDistanceToLine;
+var
+  pt, ps, pf: T2dPoint;
+  d: Double;
+begin
+  pt := T2dPoint.From(1, 1);
+  ps := T2dPoint.From(0, 0);
+  pf := T2dPoint.From(10, 0);
+  d := pt.DistanceToLine(ps, pf.Minus(ps), False);
+  CheckTrue(SameValue(d, 1));
+end;
+
+procedure Test2dPoint.TestClosestPointOnLine;
+var
+  pt, ps, pf, r, t: T2dPoint;
+begin
+  pt := T2dPoint.From(5, 8);
+  ps := T2dPoint.From(1, 1);
+  pf := T2dPoint.From(100, 1);
+  r := pt.ClosestPointOnLine(ps, pf.Minus(ps), False);
+  t := T2dPoint.From(5, 1);
+  CheckTrue(r.DistanceTo(t) < 1E-6);
+
+  pf := T2dPoint.From(100, 4);
+  r := pt.ClosestPointOnLine(ps, pf.Minus(ps), False);
+  t := T2dPoint.From(5.208256880734, 1.1275229358);
+  CheckTrue(r.DistanceTo(t) < 1E-6);
+end;
+
+procedure Test2dPoint.TestIntersectsLines;
+var
+  a, b, c, d, cross, t: T2dPoint;
+begin
+  a := T2dPoint.From(0, 2);
+  b := T2dPoint.From(1, 2);
+  c := T2dPoint.From(3, 0);
+  d := T2dPoint.From(3, 1);
+  IntersectsLines(a, b, c, d, cross);
+  t := T2dPoint.From(3, 2);
+  CheckTrue(cross.DistanceTo(t) < 1E-6);
+
+  a := T2dPoint.From(1, 1);
+  b := T2dPoint.From(3, 3);
+  c := T2dPoint.From(1, 3);
+  d := T2dPoint.From(3, 1);
+  IntersectsLines(a, b, c, d, cross);
+  t := T2dPoint.From(2, 2);
+  CheckTrue(cross.DistanceTo(t) < 1E-6);
+end;
+
+{$EndRegion}
+
 initialization
+  RegisterTest(Test2dPoint.Suite);
 
 end.
