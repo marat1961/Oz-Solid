@@ -29,12 +29,15 @@ uses
 
 {$T+}
 
-{$Region 'TsvgBuilder'}
+{$Region 'TsvgShape: Shapes and text context elements'}
 
 type
-
-  // Shapes and text context elements
   TsvgShape = class
+  private
+    FFill: string;
+    FStroke: string;
+    FStrokeWidth: Double;
+  public
     // presentation attribute that defines the color
     function Fill(const color: string): TsvgShape;
     // presentation attribute defining the color used to paint the outline of the shape
@@ -43,7 +46,10 @@ type
     function StrokeWidth(const Width: Double): TsvgShape;
   end;
 
-  // The <rect> element draws a rectangle on the screen.
+{$EndRegion}
+
+{$Region 'TsvgRect: Rect element'}
+
   TsvgRect = class(TsvgShape)
     // The x radius of the corners of the rectangle
     function Rx(const radius: Double): TsvgRect;
@@ -51,15 +57,9 @@ type
     function Ry(const radius: Double): TsvgRect;
   end;
 
-  // The <circle> element draws a circle on the screen.
-  TsvgCircle = class(TsvgShape);
+{$EndRegion}
 
-  // An <ellipse> is a more general form of the <circle> element.
-  TsvgEllipse = class(TsvgShape);
-
-  // The <line> element is an SVG basic shape used
-  // to create a line connecting two points.
-  TsvgLine = class(TsvgShape);
+{$Region 'TsvgPoly'}
 
   TsvgPoly = class(TsvgShape)
     function Point(const x, y: Double): TsvgPoly; overload;
@@ -68,16 +68,24 @@ type
     function Points(const points: T2dPoints): TsvgPoly;
   end;
 
-  // A <polyline> is a group of connected straight lines.
+{$EndRegion}
+
+{$Region 'Elements'}
+
+  TsvgCircle = class(TsvgShape);
+
+  TsvgEllipse = class(TsvgShape);
+
+  TsvgLine = class(TsvgShape);
+
   TsvgPolyline = class(TsvgPoly);
 
-  // The <polygon> element defines a closed shape consisting of a set
-  // of connected straight line segments.
-  // The last point is connected to the first point.
   TsvgPolygon = class(TsvgPoly);
 
-  // The <path> SVG element is the generic element to define a shape.
-  // All the basic shapes can be created with a path element.
+{$EndRegion}
+
+{$Region 'TsvgPoly'}
+
   TsvgPath = class(TsvgShape)
     // op
     //   MoveTo: M, m
@@ -89,9 +97,15 @@ type
     function D(op: Char; const points: T2dPoints): TsvgPath;
   end;
 
+{$EndRegion}
+
+{$Region 'TsvgPoly'}
+
   TsvgText = class(TsvgShape)
     function Cls(const value: string): TsvgText;
   end;
+
+{$EndRegion}
 
   TViewBox = record
     min_x: Double;
@@ -99,6 +113,10 @@ type
     width: Double;
     height: Double;
   end;
+
+{$EndRegion}
+
+{$Region 'TsvgBuilder'}
 
   TsvgBuilder = class
   private
@@ -112,12 +130,23 @@ type
     // The viewBox attribute defines the position and dimension,
     // in user space, of an SVG viewport.
     function ViewBox(min_x, min_y, width, height: Double): TsvgBuilder;
+    // The <rect> element draws a rectangle on the screen.
     function Rect(x, y, width, height: Double): TsvgRect;
+    // The <circle> element draws a circle on the screen.
     function Circle(cx, cy, r: Double): TsvgCircle;
+    // An <ellipse> is a more general form of the <circle> element.
     function Ellipse(cx, cy, rx, ry: Double): TsvgEllipse;
+    // The <line> element is an SVG basic shape used
+    // to create a line connecting two points.
     function Line(x1, y1, x2, y2: Double): TsvgLine;
+    // A <polyline> is a group of connected straight lines.
     function Polyline: TsvgPolyline;
+    // The <polygon> element defines a closed shape consisting of a set
+    // of connected straight line segments.
+    // The last point is connected to the first point.
     function Polygon: TsvgPolygon;
+    // The <path> SVG element is the generic element to define a shape.
+    // All the basic shapes can be created with a path element.
     function Path: TsvgPath;
     // The SVG <text> element draws a graphics element consisting of text.
     function Text(x, y: Double; const text, cls: string): TsvgText;
@@ -127,6 +156,81 @@ type
 {$EndRegion}
 
 implementation
+
+{$Region 'TsvgShape'}
+
+function TsvgShape.Fill(const color: string): TsvgShape;
+begin
+  FFill := color;
+end;
+
+function TsvgShape.Stroke(const color: string): TsvgShape;
+begin
+  FStroke := color;
+end;
+
+function TsvgShape.StrokeWidth(const Width: Double): TsvgShape;
+begin
+  FStrokeWidth := Width;
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgRect'}
+
+function TsvgRect.Rx(const radius: Double): TsvgRect;
+begin
+
+end;
+
+function TsvgRect.Ry(const radius: Double): TsvgRect;
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgPoly'}
+
+function TsvgPoly.Point(const x, y: Double): TsvgPoly;
+begin
+
+end;
+
+function TsvgPoly.Point(const pt: T2dPoint): TsvgPoly;
+begin
+
+end;
+
+function TsvgPoly.Point(const pt: T2i): TsvgPoly;
+begin
+
+end;
+
+function TsvgPoly.Points(const points: T2dPoints): TsvgPoly;
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgPoly'}
+
+function TsvgPath.D(op: Char; const points: T2dPoints): TsvgPath;
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgText'}
+
+function TsvgText.Cls(const value: string): TsvgText;
+begin
+
+end;
+
+{$EndRegion}
 
 {$Region 'TsvgBuilder'}
 
@@ -183,6 +287,11 @@ begin
 end;
 
 function TsvgBuilder.Path: TsvgPath;
+begin
+
+end;
+
+function TsvgBuilder.Text(x, y: Double; const text, cls: string): TsvgText;
 begin
 
 end;
