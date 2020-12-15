@@ -34,6 +34,7 @@ type
     procedure TestCollinearity;
     procedure TestDistanceToLine;
     procedure TestClosestPointOnLine;
+    procedure TestIntersectsSegments;
     procedure TestIntersectsLines;
   end;
 
@@ -118,6 +119,69 @@ begin
   IntersectsLines(a, b, c, d, cross);
   t := T2dPoint.From(2, 2);
   CheckTrue(cross.DistanceTo(t) < 1E-6);
+end;
+
+procedure Test2dPoint.TestIntersectsSegments;
+var
+  a, b, c, d, cross, t: T2dPoint;
+  ok: Boolean;
+begin
+  // 1. the segments intersect
+  a := T2dPoint.From(1, 1);
+  b := T2dPoint.From(3, 3);
+  c := T2dPoint.From(1, 3);
+  d := T2dPoint.From(3, 1);
+  ok := IntersectsSegments(a, b, c, d, cross);
+  CheckTrue(ok);
+  t := T2dPoint.From(2, 2);
+  CheckTrue(cross.DistanceTo(t) < 1E-6);
+  // 2. parallel lines
+  a := T2dPoint.From(1, 1);
+  b := T2dPoint.From(3, 3);
+  c := T2dPoint.From(0, 1);
+  d := T2dPoint.From(2, 3);
+  ok := IntersectsSegments(a, b, c, d, cross);
+  CheckTrue(not ok);
+  // 3. coinciding line segments
+  a := T2dPoint.From(1, 1);
+  b := T2dPoint.From(3, 3);
+  c := T2dPoint.From(1, 1);
+  d := T2dPoint.From(3, 3);
+  ok := IntersectsSegments(a, b, c, d, cross);
+  CheckTrue(not ok);
+  // 4. the segments do not intersect
+  a := T2dPoint.From(1, 1);
+  b := T2dPoint.From(3, 3);
+  c := T2dPoint.From(2, 0);
+  d := T2dPoint.From(2, 1);
+  ok := IntersectsSegments(a, b, c, d, cross);
+  CheckTrue(not ok);
+  a := T2dPoint.From(1, 1);
+  b := T2dPoint.From(3, 3);
+  c := T2dPoint.From(-1, 1);
+  d := T2dPoint.From(1, -1);
+  ok := IntersectsSegments(a, b, c, d, cross);
+  CheckTrue(not ok);
+
+  // 5. the extreme point lies on the inside of the segment
+//  a := T2dPoint.From(1, 1);
+//  b := T2dPoint.From(3, 3);
+//  c := T2dPoint.From(1, 3);
+//  d := T2dPoint.From(2, 2);
+//  ok := IntersectsSegments(a, b, c, d, cross);
+//  CheckTrue(ok);
+//  t := T2dPoint.From(2, 2);
+//  CheckTrue(cross.DistanceTo(t) < 1E-6);
+
+  // 5. extreme points coincide
+//  a := T2dPoint.From(1, 1);
+//  b := T2dPoint.From(3, 3);
+//  c := T2dPoint.From(1, 1);
+//  d := T2dPoint.From(1, 5);
+//  ok := IntersectsSegments(a, b, c, d, cross);
+//  CheckTrue(ok);
+//  t := T2dPoint.From(1, 1);
+//  CheckTrue(cross.DistanceTo(t) < 1E-6);
 end;
 
 {$EndRegion}
