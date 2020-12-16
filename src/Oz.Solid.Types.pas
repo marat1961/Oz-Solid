@@ -304,10 +304,11 @@ function GetNormal(v: TsdVector): TsdVector;
 // Return intersection point of the segments
 function IntersectionOfLines(ax0, ay0, dxa, dya, bx0, by0, dxb, dyb: Double;
   var cx, cy: Double): Boolean;
-function IntersectsSegments(const s1, e1, s2, e2: T2dPoint;
+// Return the intersection point of line segments
+function IntersectSegments(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
 // Return the intersection point of lines
-function IntersectsLines(const a, b, c, d: T2dPoint;
+function IntersectLines(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
 
 {$EndRegion}
@@ -419,35 +420,30 @@ begin
   result := True;
 end;
 
-function IntersectsSegments(const s1, e1, s2, e2: T2dPoint;
+function IntersectSegments(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
 var
-  dp1, dp2: T2dPoint;
-  a1, b1, d1, a2, b2, d2, s12s, s12e, s21s, s21e, t: Double;
+  t, t1, t2, tt: Double;
+  ba, dc, ac: T2dPoint;
 begin
-  dp1 := e1.Minus(s1);
-  dp2 := e2.Minus(s2);
-  a1 := -dp1.y;
-  b1 := dp1.x;
-  d1 := -(a1 * s1.x + b1 * s1.y);
-  a2 := -dp2.y;
-  b2 := dp2.x;
-  d2 := -(a2 * s2.x + b2 * s2.y);
-  s12s := a2 * s1.x + b2 * s1.y + d2;
-  s12e := a2 * e1.x + b2 * e1.y + d2;
-  s21s := a1 * s2.x + b1 * s2.y + d1;
-  s21e := a1 *e2.x + b1 * e2.y + d1;
-  if (s12s * s12e >= 0) or (s21s * s21e >= 0) then
-    Result := False
-  else
-  begin
-    t := s12s / (s12s - s12e);
-    cross := s1.Plus(dp1.ScaledBy(t));
-    Result := True;
-  end;
+  ba := b.Minus(a);
+  dc := d.Minus(c);
+  ac := a.Minus(c);
+  t := ba.Cross(dc);
+  t1 := dc.Cross(ac);
+  t2 := ba.Cross(ac);
+  if IsZero(t, 1e-12) then
+    exit(False);
+  t1 := t1 / t;
+  t2 := t2 / t;
+  Result :=
+    InRange(t1, -LengthEps, 1 + LengthEps) and
+    InRange(t2, -LengthEps, 1 + LengthEps);
+  if Result then
+    cross := a.Plus(ba.ScaledBy(t1));
 end;
 
-function IntersectsLines(const a, b, c, d: T2dPoint;
+function IntersectLines(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
 var
   ab, cd:  T2dPoint;
@@ -456,7 +452,7 @@ begin
   ab := a.Minus(b);
   cd := c.Minus(d);
   t := ab.Cross(cd);
-  if Abs(t) < 1e-6 then
+  if Abs(t) < LengthEps then
     exit(False);
   d1 := a.Cross(b);
   d2 := c.Cross(d);
