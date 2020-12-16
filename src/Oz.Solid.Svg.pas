@@ -44,6 +44,8 @@ type
     function Stroke(const color: string): TsvgShape;
     // presentation attribute defining the width of the stroke to be applied to the shape
     function StrokeWidth(const Width: Double): TsvgShape;
+    // generate svg element
+    function ToString: string; virtual;
   end;
 
 {$EndRegion}
@@ -52,13 +54,17 @@ type
 
   TsvgRect = class(TsvgShape)
   private
-    FRx: Double;
-    FRy: Double;
+    Fx, Fy, Fwidth, Fheight: Double;
+    Frx: Double;
+    Fry: Double;
   public
+    constructor Create(x, y, width, height: Double);
     // The x radius of the corners of the rectangle
     function Rx(const radius: Double): TsvgRect;
     // The y radius of the corners of the rectangle
     function Ry(const radius: Double): TsvgRect;
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -67,8 +73,10 @@ type
 
   TsvgPoly = class(TsvgShape)
   private
+    FPolygon: Boolean;
     FPoints: TArray<T2dPoint>;
   public
+    constructor Create(Polygon: Boolean);
     function Point(const pt: T2dPoint): TsvgPoly; overload;
     function Point(const x, y: Double): TsvgPoly; overload;
     function Point(const pt: T2i): TsvgPoly; overload;
@@ -77,21 +85,81 @@ type
 
 {$EndRegion}
 
-{$Region 'Elements'}
+{$Region 'TsvgPolyline'}
 
-  TsvgCircle = class(TsvgShape);
-
-  TsvgEllipse = class(TsvgShape);
-
-  TsvgLine = class(TsvgShape);
-
-  TsvgPolyline = class(TsvgPoly);
-
-  TsvgPolygon = class(TsvgPoly);
+  TsvgPolyline = class(TsvgPoly)
+  public
+    constructor Create;
+  end;
 
 {$EndRegion}
 
-{$Region 'TsvgPoly'}
+{$Region 'TsvgPolygon'}
+
+  TsvgPolygon = class(TsvgPoly)
+  public
+    constructor Create;
+  end;
+
+{$EndRegion}
+
+{$Region 'TsvgCircle'}
+
+  TsvgCircle = class(TsvgShape)
+  private
+    Fcx: Double;
+    Fcy: Double;
+    Fr: Double;
+  public
+    constructor Create(cx, cy, r: Double);
+  end;
+
+{$EndRegion}
+
+{$Region 'TsvgEllipse'}
+
+  TsvgEllipse = class(TsvgShape)
+  private
+    Fcx: Double;
+    Fcy: Double;
+    Frx: Double;
+    Fry: Double;
+  public
+    constructor Create(cx, cy, rx, ry: Double);
+  end;
+
+{$EndRegion}
+
+{$Region 'TsvgLine'}
+
+  TsvgLine = class(TsvgShape)
+  private
+    Fx1: Double;
+    Fy1: Double;
+    Fx2: Double;
+    Fy2: Double;
+  public
+    constructor Create(x1, y1, x2, y2: Double);
+  end;
+
+{$EndRegion}
+
+{$Region 'TsvgText'}
+
+  TsvgText = class(TsvgShape)
+  private
+    Fx: Double;
+    Fy: Double;
+    Ftext: Double;
+    Fcls: Double;
+  public
+    constructor Create(x, y: Double; const text: string);
+    function Cls(const value: string): TsvgText;
+  end;
+
+{$EndRegion}
+
+{$Region 'TsvgPath'}
 
   TsvgPath = class(TsvgShape)
   type
@@ -114,13 +182,7 @@ type
 
 {$EndRegion}
 
-{$Region 'TsvgPoly'}
-
-  TsvgText = class(TsvgShape)
-    function Cls(const value: string): TsvgText;
-  end;
-
-{$EndRegion}
+{$Region 'TViewBox'}
 
   TViewBox = record
     min_x: Double;
@@ -189,9 +251,23 @@ begin
   FStrokeWidth := Width;
 end;
 
+function TsvgShape.ToString: string;
+begin
+
+end;
+
 {$EndRegion}
 
 {$Region 'TsvgRect'}
+
+constructor TsvgRect.Create(x, y, width, height: Double);
+begin
+  inherited Create;
+  Fx := x;
+  Fy := y;
+  Fwidth := width;
+  Fheight := height;
+end;
 
 function TsvgRect.Rx(const radius: Double): TsvgRect;
 begin
@@ -203,9 +279,20 @@ begin
   FRy := radius;
 end;
 
+function TsvgRect.ToString: string;
+begin
+
+end;
+
 {$EndRegion}
 
 {$Region 'TsvgPoly'}
+
+constructor TsvgPoly.Create(Polygon: Boolean);
+begin
+  FPolygon := Polygon;
+  FPoints := [];
+end;
 
 function TsvgPoly.Point(const pt: T2dPoint): TsvgPoly;
 begin
@@ -232,7 +319,16 @@ end;
 
 {$EndRegion}
 
-{$Region 'TsvgPoly'}
+{$Region 'TsvgPolyline'}
+
+constructor TsvgPolyline.Create;
+begin
+  inherited Create(False);
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgPath'}
 
 function TsvgPath.D(op: Char; const points: T2dPoints): TsvgPath;
 var
@@ -280,7 +376,7 @@ end;
 
 function TsvgBuilder.Rect(x, y, width, height: Double): TsvgRect;
 begin
-
+  Result := TsvgRect.Create(x, y, width, height);
 end;
 
 function TsvgBuilder.Circle(cx, cy, r: Double): TsvgCircle;
