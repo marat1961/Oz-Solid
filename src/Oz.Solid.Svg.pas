@@ -51,6 +51,10 @@ type
 {$Region 'TsvgRect: Rect element'}
 
   TsvgRect = class(TsvgShape)
+  private
+    FRx: Double;
+    FRy: Double;
+  public
     // The x radius of the corners of the rectangle
     function Rx(const radius: Double): TsvgRect;
     // The y radius of the corners of the rectangle
@@ -62,8 +66,11 @@ type
 {$Region 'TsvgPoly'}
 
   TsvgPoly = class(TsvgShape)
-    function Point(const x, y: Double): TsvgPoly; overload;
+  private
+    FPoints: TArray<T2dPoint>;
+  public
     function Point(const pt: T2dPoint): TsvgPoly; overload;
+    function Point(const x, y: Double): TsvgPoly; overload;
     function Point(const pt: T2i): TsvgPoly; overload;
     function Points(const points: T2dPoints): TsvgPoly;
   end;
@@ -87,6 +94,14 @@ type
 {$Region 'TsvgPoly'}
 
   TsvgPath = class(TsvgShape)
+  type
+    TPathOp = record
+      op: Char;
+      points: T2dPoints
+    end;
+  private
+    FOps: TArray<TPathOp>;
+  public
     // op
     //   MoveTo: M, m
     //   LineTo: L, l, H, h, V, v
@@ -180,36 +195,39 @@ end;
 
 function TsvgRect.Rx(const radius: Double): TsvgRect;
 begin
-
+  FRx := radius;
 end;
 
 function TsvgRect.Ry(const radius: Double): TsvgRect;
 begin
-
+  FRy := radius;
 end;
 
 {$EndRegion}
 
 {$Region 'TsvgPoly'}
 
-function TsvgPoly.Point(const x, y: Double): TsvgPoly;
-begin
-
-end;
-
 function TsvgPoly.Point(const pt: T2dPoint): TsvgPoly;
 begin
+  FPoints := FPoints + [pt];
+end;
 
+function TsvgPoly.Point(const x, y: Double): TsvgPoly;
+begin
+  FPoints := FPoints + [T2dPoint.From(x, y)];
 end;
 
 function TsvgPoly.Point(const pt: T2i): TsvgPoly;
 begin
-
+  FPoints := FPoints + [T2dPoint.From(pt.x, pt.y)];
 end;
 
 function TsvgPoly.Points(const points: T2dPoints): TsvgPoly;
+var
+  i: Integer;
 begin
-
+  for i := 0 to High(points) do
+    Point(points[i]);
 end;
 
 {$EndRegion}
@@ -217,8 +235,12 @@ end;
 {$Region 'TsvgPoly'}
 
 function TsvgPath.D(op: Char; const points: T2dPoints): TsvgPath;
+var
+  item: TPathOp;
 begin
-
+  item.op := op;
+  item.points := points;
+  FOps := FOps + [item];
 end;
 
 {$EndRegion}
