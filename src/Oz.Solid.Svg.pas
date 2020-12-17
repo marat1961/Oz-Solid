@@ -93,8 +93,6 @@ type
   TsvgPolyline = class(TsvgPoly)
   public
     constructor Create;
-    // generate svg element
-    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -104,8 +102,6 @@ type
   TsvgPolygon = class(TsvgPoly)
   public
     constructor Create;
-    // generate svg element
-    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -254,8 +250,12 @@ type
 {$Region 'TsvgBuilder'}
 
   TSbHelper = class helper for TStringBuilder
+  const
+    DF = '%.8f';
+  public
     procedure StrAttr(const name, value: string);
-    procedure NumAttr(const name: string; value, def: Double);
+    procedure NumAttr(const name: string; value: Double; def: Double = 0.0);
+    procedure Point(const Pt: T2dPoint);
   end;
 
 {$EndRegion}
@@ -283,16 +283,21 @@ begin
   end;
 end;
 
+procedure TSbHelper.Point(const Pt: T2dPoint);
+begin
+  AppendFormat(' %s %s', [FormatDouble(Pt.x, DF), FormatDouble(pt.y, DF)]);
+end;
+
 procedure TSbHelper.StrAttr(const name, value: string);
 begin
   if value = '' then exit;
-  AppendFormat('%s=''%s''', [name, value]);
+  AppendFormat(' %s=''%s''', [name, value]);
 end;
 
 procedure TSbHelper.NumAttr(const name: string; value, def: Double);
 begin
   if SameValue(value, def) then exit;
-  AppendFormat('%s=''%s''', [name, FormatDouble(value, '%.4f')]);
+  AppendFormat(' %s=''%s''', [name, FormatDouble(value, DF)]);
 end;
 
 {$Region 'TsvgShape'}
@@ -315,8 +320,8 @@ end;
 procedure TsvgShape.Gen;
 begin
   sb.StrAttr('fill', FFill);
-  sb.StrAttr('Stroke', FStroke);
-  sb.StrAttr('Stroke', FStroke);
+  sb.StrAttr('stroke', FStroke);
+  sb.NumAttr('stroke-width', FStrokeWidth, 1);
 end;
 
 {$EndRegion}
@@ -344,7 +349,13 @@ end;
 
 procedure TsvgRect.Gen;
 begin
-
+  sb.Append('<rect');
+  sb.NumAttr('x', Fx);
+  sb.NumAttr('y', Fy);
+  sb.NumAttr('width', Fwidth);
+  sb.NumAttr('height', Fheight);
+  inherited Gen;
+  sb.AppendLine('/>');
 end;
 
 {$EndRegion}
@@ -381,8 +392,17 @@ begin
 end;
 
 procedure TsvgPoly.Gen;
+var
+  i: Integer;
 begin
-
+  if FPolygon then
+    sb.Append('<polygon')
+  else
+    sb.Append('<polyline');
+  for i := 0 to High(FPoints) do
+    sb.Point(FPoints[i]);
+  inherited Gen;
+  sb.AppendLine('/>');
 end;
 
 {$EndRegion}
@@ -394,11 +414,6 @@ begin
   inherited Create(False);
 end;
 
-procedure TsvgPolyline.Gen;
-begin
-
-end;
-
 {$EndRegion}
 
 {$Region 'TsvgPolygon'}
@@ -406,11 +421,6 @@ end;
 constructor TsvgPolygon.Create;
 begin
   inherited Create(True);
-end;
-
-procedure TsvgPolygon.Gen;
-begin
-
 end;
 
 {$EndRegion}
@@ -427,7 +437,12 @@ end;
 
 procedure TsvgCircle.Gen;
 begin
-
+  sb.Append('<circle');
+  sb.NumAttr('cx', Fcx);
+  sb.NumAttr('cy', Fcy);
+  sb.NumAttr('r', Fr);
+  inherited Gen;
+  sb.AppendLine('/>');
 end;
 
 {$EndRegion}
