@@ -423,7 +423,7 @@ end;
 function IntersectSegments(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
 var
-  t, t1, t2, tt: Double;
+  t, t1, t2: Double;
   ba, dc, ac: T2dPoint;
 begin
   ba := b.Minus(a);

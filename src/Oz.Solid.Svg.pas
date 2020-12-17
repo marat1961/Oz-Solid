@@ -22,7 +22,7 @@ interface
 {$Region 'Uses'}
 
 uses
-  System.Classes, System.SysUtils, System.Contnrs,
+  System.Classes, System.SysUtils, System.Math, System.Contnrs,
   Oz.Solid.VectorInt, Oz.Solid.Types;
 
 {$EndRegion}
@@ -37,6 +37,7 @@ type
     FFill: string;
     FStroke: string;
     FStrokeWidth: Double;
+    sb: TStringBuilder;
   public
     // presentation attribute that defines the color
     function Fill(const color: string): TsvgShape;
@@ -45,7 +46,7 @@ type
     // presentation attribute defining the width of the stroke to be applied to the shape
     function StrokeWidth(const Width: Double): TsvgShape;
     // generate svg element
-    function ToString: string; virtual;
+    procedure Gen; virtual;
   end;
 
 {$EndRegion}
@@ -64,7 +65,7 @@ type
     // The y radius of the corners of the rectangle
     function Ry(const radius: Double): TsvgRect;
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -82,7 +83,7 @@ type
     function Point(const pt: T2i): TsvgPoly; overload;
     function Points(const points: T2dPoints): TsvgPoly;
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -93,7 +94,7 @@ type
   public
     constructor Create;
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -104,7 +105,7 @@ type
   public
     constructor Create;
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -119,7 +120,7 @@ type
   public
     constructor Create(cx, cy, r: Double);
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -135,7 +136,7 @@ type
   public
     constructor Create(cx, cy, rx, ry: Double);
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -151,7 +152,7 @@ type
   public
     constructor Create(x1, y1, x2, y2: Double);
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -168,7 +169,7 @@ type
     constructor Create(x, y: Double; const text: string);
     function Cls(const value: string): TsvgText;
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -194,7 +195,7 @@ type
     //   ClosePath: Z, z
     function D(op: Char; const points: T2dPoints): TsvgPath;
     // generate svg element
-    function ToString: string; override;
+    procedure Gen; override;
   end;
 
 {$EndRegion}
@@ -245,12 +246,54 @@ type
     // All the basic shapes can be created with a path element.
     function Path: TsvgPath;
     // generate svg element
-    function ToString: string; override;
+    function ToString: string;
   end;
 
 {$EndRegion}
 
+{$Region 'TsvgBuilder'}
+
+  TSbHelper = class helper for TStringBuilder
+    procedure StrAttr(const name, value: string);
+    procedure NumAttr(const name: string; value, def: Double);
+  end;
+
+{$EndRegion}
+
+function FormatDouble(Value: Double; const FormatString: string): string;
+
 implementation
+
+function FormatDouble(Value: Double; const FormatString: string): string;
+var P: PChar;
+begin
+  Result := Format(FormatString, [Value]);
+  P := PChar(Result);
+  if P^ = '-' then Inc(P);
+  while (P^ >= '0') and (P^ <= '9') do Inc(P);
+  if (P^ = '.') or (P^ = ',') then
+  begin
+    Inc(P);
+    while (P^ >= '0') and (P^ <= '9') do Inc(P);
+    repeat
+      Dec(P);
+    until P^ <> '0';
+    if (P^ = '.') or (P^ = ',') then Dec(P);
+    SetLength(Result, P - PChar(Result) + 1);
+  end;
+end;
+
+procedure TSbHelper.StrAttr(const name, value: string);
+begin
+  if value = '' then exit;
+  AppendFormat('%s=''%s''', [name, value]);
+end;
+
+procedure TSbHelper.NumAttr(const name: string; value, def: Double);
+begin
+  if SameValue(value, def) then exit;
+  AppendFormat('%s=''%s''', [name, FormatDouble(value, '%.4f')]);
+end;
 
 {$Region 'TsvgShape'}
 
@@ -269,9 +312,11 @@ begin
   FStrokeWidth := Width;
 end;
 
-function TsvgShape.ToString: string;
+procedure TsvgShape.Gen;
 begin
-
+  sb.StrAttr('fill', FFill);
+  sb.StrAttr('Stroke', FStroke);
+  sb.StrAttr('Stroke', FStroke);
 end;
 
 {$EndRegion}
@@ -297,7 +342,7 @@ begin
   FRy := radius;
 end;
 
-function TsvgRect.ToString: string;
+procedure TsvgRect.Gen;
 begin
 
 end;
@@ -335,7 +380,7 @@ begin
     Point(points[i]);
 end;
 
-function TsvgPoly.ToString: string;
+procedure TsvgPoly.Gen;
 begin
 
 end;
@@ -349,7 +394,7 @@ begin
   inherited Create(False);
 end;
 
-function TsvgPolyline.ToString: string;
+procedure TsvgPolyline.Gen;
 begin
 
 end;
@@ -363,7 +408,7 @@ begin
   inherited Create(True);
 end;
 
-function TsvgPolygon.ToString: string;
+procedure TsvgPolygon.Gen;
 begin
 
 end;
@@ -380,7 +425,7 @@ begin
   Fr := r;
 end;
 
-function TsvgCircle.ToString: string;
+procedure TsvgCircle.Gen;
 begin
 
 end;
@@ -398,7 +443,7 @@ begin
   Fry := ry;
 end;
 
-function TsvgEllipse.ToString: string;
+procedure TsvgEllipse.Gen;
 begin
 
 end;
@@ -416,7 +461,7 @@ begin
   Fy2 := y2;
 end;
 
-function TsvgLine.ToString: string;
+procedure TsvgLine.Gen;
 begin
 
 end;
@@ -438,7 +483,7 @@ begin
   Fcls := value;
 end;
 
-function TsvgText.ToString: string;
+procedure TsvgText.Gen;
 begin
 
 end;
@@ -461,7 +506,7 @@ begin
   FOps := FOps + [item];
 end;
 
-function TsvgPath.ToString: string;
+procedure TsvgPath.Gen;
 begin
 
 end;
