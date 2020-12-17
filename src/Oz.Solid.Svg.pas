@@ -181,7 +181,7 @@ type
   private
     FOps: TArray<TPathOp>;
   public
-    constructor Create(x, y: Double; const text: string);
+    constructor Create;
     // op
     //   MoveTo: M, m
     //   LineTo: L, l, H, h, V, v
@@ -217,7 +217,7 @@ type
     FShapes: TObjectList;
   public
     constructor Create(width, height: Double);
-    destructor Destroy; overload;
+    destructor Destroy; override;
     // The viewBox attribute defines the position and dimension,
     // in user space, of an SVG viewport.
     function ViewBox(min_x, min_y, width, height: Double): TsvgBuilder;
@@ -237,12 +237,12 @@ type
     // The last point is connected to the first point.
     function Polygon: TsvgPolygon;
     // The SVG <text> element draws a graphics element consisting of text.
-    function Text(x, y: Double; const text, cls: string): TsvgText;
+    function Text(x, y: Double; const text: string): TsvgText;
     // The <path> SVG element is the generic element to define a shape.
     // All the basic shapes can be created with a path element.
     function Path: TsvgPath;
     // generate svg element
-    function ToString: string;
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -255,14 +255,22 @@ type
   public
     procedure StrAttr(const name, value: string);
     procedure NumAttr(const name: string; value: Double; def: Double = 0.0);
+    procedure Text(const value: string);
     procedure Point(const Pt: T2dPoint);
   end;
 
 {$EndRegion}
 
+{$Region 'Sbrouitines'}
+
 function FormatDouble(Value: Double; const FormatString: string): string;
+function StrToXml(const s: string): string;
+
+{$EndRegion}
 
 implementation
+
+{$Region 'Sbrouitines'}
 
 function FormatDouble(Value: Double; const FormatString: string): string;
 var P: PChar;
@@ -283,16 +291,45 @@ begin
   end;
 end;
 
-procedure TSbHelper.Point(const Pt: T2dPoint);
+function StrToXml(const s: string): string;
+var
+  MaxLen, i, Idx: integer;
 begin
-  AppendFormat(' %s %s', [FormatDouble(Pt.x, DF), FormatDouble(pt.y, DF)]);
+  MaxLen := 0;
+  for i := 1 to Length(s) do begin
+    case s[i] of
+      '<': Inc(MaxLen, 4);
+      '&': Inc(MaxLen, 5);
+      '>': Inc(MaxLen, 4);
+      '"': Inc(MaxLen, 6);
+      '''': Inc(MaxLen, 6);
+    else
+      Inc(MaxLen);
+    end;
+  end;
+
+  SetLength(Result, MaxLen);
+
+  Idx := 1;
+  for i := 1 to Length(s) do begin
+    case s[i] of
+      '<': begin Move('&lt;', Result[Idx], 4); Inc(Idx, 4); end;
+      '&': begin Move('&amp;', Result[Idx], 5); Inc(Idx, 5); end;
+      '>': begin Move('&gt;', Result[Idx], 4); Inc(Idx, 4); end;
+      '"': begin Move('&quot;', Result[Idx], 6); Inc(Idx, 6); end;
+      '''': begin Move('&apos;', Result[Idx], 6); Inc(Idx, 6); end;
+    else
+      begin
+        Result[Idx] := s[i];
+        Inc(Idx);
+      end;
+    end;
+  end;
 end;
 
-procedure TSbHelper.StrAttr(const name, value: string);
-begin
-  if value = '' then exit;
-  AppendFormat(' %s=''%s''', [name, value]);
-end;
+{$EndRegion}
+
+{$Region 'TSbHelper'}
 
 procedure TSbHelper.NumAttr(const name: string; value, def: Double);
 begin
@@ -300,21 +337,42 @@ begin
   AppendFormat(' %s=''%s''', [name, FormatDouble(value, DF)]);
 end;
 
+procedure TSbHelper.StrAttr(const name, value: string);
+begin
+  if value = '' then exit;
+  AppendFormat(' %s=''%s''', [name, StrToXml(value)]);
+end;
+
+procedure TSbHelper.Text(const value: string);
+begin
+  Append(StrToXml(value));
+end;
+
+procedure TSbHelper.Point(const Pt: T2dPoint);
+begin
+  AppendFormat(' %s %s', [FormatDouble(Pt.x, DF), FormatDouble(pt.y, DF)]);
+end;
+
+{$EndRegion}
+
 {$Region 'TsvgShape'}
 
 function TsvgShape.Fill(const color: string): TsvgShape;
 begin
   FFill := color;
+  Result := Self;
 end;
 
 function TsvgShape.Stroke(const color: string): TsvgShape;
 begin
   FStroke := color;
+  Result := Self;
 end;
 
 function TsvgShape.StrokeWidth(const Width: Double): TsvgShape;
 begin
   FStrokeWidth := Width;
+  Result := Self;
 end;
 
 procedure TsvgShape.Gen;
@@ -340,11 +398,13 @@ end;
 function TsvgRect.Rx(const radius: Double): TsvgRect;
 begin
   FRx := radius;
+  Result := Self;
 end;
 
 function TsvgRect.Ry(const radius: Double): TsvgRect;
 begin
   FRy := radius;
+  Result := Self;
 end;
 
 procedure TsvgRect.Gen;
@@ -371,16 +431,19 @@ end;
 function TsvgPoly.Point(const pt: T2dPoint): TsvgPoly;
 begin
   FPoints := FPoints + [pt];
+  Result := Self;
 end;
 
 function TsvgPoly.Point(const x, y: Double): TsvgPoly;
 begin
   FPoints := FPoints + [T2dPoint.From(x, y)];
+  Result := Self;
 end;
 
 function TsvgPoly.Point(const pt: T2i): TsvgPoly;
 begin
   FPoints := FPoints + [T2dPoint.From(pt.x, pt.y)];
+  Result := Self;
 end;
 
 function TsvgPoly.Points(const points: T2dPoints): TsvgPoly;
@@ -389,6 +452,7 @@ var
 begin
   for i := 0 to High(points) do
     Point(points[i]);
+  Result := Self;
 end;
 
 procedure TsvgPoly.Gen;
@@ -460,7 +524,13 @@ end;
 
 procedure TsvgEllipse.Gen;
 begin
-
+  sb.Append('<ellipse');
+  sb.NumAttr('cx', Fcx);
+  sb.NumAttr('cy', Fcy);
+  sb.NumAttr('rx', Frx);
+  sb.NumAttr('ry', Fry);
+  inherited Gen;
+  sb.AppendLine('/>');
 end;
 
 {$EndRegion}
@@ -478,7 +548,13 @@ end;
 
 procedure TsvgLine.Gen;
 begin
-
+  sb.Append('<line');
+  sb.NumAttr('x1', Fx1);
+  sb.NumAttr('y1', Fy1);
+  sb.NumAttr('x2', Fx2);
+  sb.NumAttr('y2', Fy2);
+  inherited Gen;
+  sb.AppendLine('/>');
 end;
 
 {$EndRegion}
@@ -496,20 +572,28 @@ end;
 function TsvgText.Cls(const value: string): TsvgText;
 begin
   Fcls := value;
+  Result := Self;
 end;
 
 procedure TsvgText.Gen;
 begin
-
+  sb.Append('<text');
+  sb.NumAttr('x', Fx);
+  sb.NumAttr('y', Fy);
+  inherited Gen;
+  sb.Append('>');
+  sb.Append(Ftext);
+  sb.AppendLine('</text>');
 end;
 
 {$EndRegion}
 
 {$Region 'TsvgPath'}
 
-constructor TsvgPath.Create(x, y: Double; const text: string);
+constructor TsvgPath.Create;
 begin
-
+  inherited;
+  FOps := [];
 end;
 
 function TsvgPath.D(op: Char; const points: T2dPoints): TsvgPath;
@@ -519,6 +603,7 @@ begin
   item.op := op;
   item.points := points;
   FOps := FOps + [item];
+  Result := Self;
 end;
 
 procedure TsvgPath.Gen;
@@ -550,6 +635,7 @@ begin
   FViewBox.min_y := min_y;
   FViewBox.width := width;
   FViewBox.height := height;
+  Result := Self;
 end;
 
 function TsvgBuilder.Rect(x, y, width, height: Double): TsvgRect;
@@ -559,37 +645,37 @@ end;
 
 function TsvgBuilder.Circle(cx, cy, r: Double): TsvgCircle;
 begin
-
+  Result := TsvgCircle.Create(cx, cy, r);
 end;
 
 function TsvgBuilder.Ellipse(cx, cy, rx, ry: Double): TsvgEllipse;
 begin
-
+  Result := TsvgEllipse.Create(cx, cy, rx, ry);
 end;
 
 function TsvgBuilder.Line(x1, y1, x2, y2: Double): TsvgLine;
 begin
-
+  Result := TsvgLine.Create(x1, y1, x2, y2);
 end;
 
 function TsvgBuilder.Polyline: TsvgPolyline;
 begin
-
+  Result := TsvgPolyline.Create;
 end;
 
 function TsvgBuilder.Polygon: TsvgPolygon;
 begin
-
+  Result := TsvgPolygon.Create;
 end;
 
 function TsvgBuilder.Path: TsvgPath;
 begin
-
+  Result := TsvgPath.Create;
 end;
 
-function TsvgBuilder.Text(x, y: Double; const text, cls: string): TsvgText;
+function TsvgBuilder.Text(x, y: Double; const text: string): TsvgText;
 begin
-
+  Result := TsvgText.Create(x, y, text);
 end;
 
 function TsvgBuilder.ToString: string;
