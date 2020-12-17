@@ -81,6 +81,8 @@ type
     function Point(const x, y: Double): TsvgPoly; overload;
     function Point(const pt: T2i): TsvgPoly; overload;
     function Points(const points: T2dPoints): TsvgPoly;
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -90,6 +92,8 @@ type
   TsvgPolyline = class(TsvgPoly)
   public
     constructor Create;
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -99,6 +103,8 @@ type
   TsvgPolygon = class(TsvgPoly)
   public
     constructor Create;
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -112,6 +118,8 @@ type
     Fr: Double;
   public
     constructor Create(cx, cy, r: Double);
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -126,6 +134,8 @@ type
     Fry: Double;
   public
     constructor Create(cx, cy, rx, ry: Double);
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -140,6 +150,8 @@ type
     Fy2: Double;
   public
     constructor Create(x1, y1, x2, y2: Double);
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -150,11 +162,13 @@ type
   private
     Fx: Double;
     Fy: Double;
-    Ftext: Double;
-    Fcls: Double;
+    Ftext: string;
+    Fcls: string;
   public
     constructor Create(x, y: Double; const text: string);
     function Cls(const value: string): TsvgText;
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -170,6 +184,7 @@ type
   private
     FOps: TArray<TPathOp>;
   public
+    constructor Create(x, y: Double; const text: string);
     // op
     //   MoveTo: M, m
     //   LineTo: L, l, H, h, V, v
@@ -178,6 +193,8 @@ type
     //   Elliptical Arc Curve: A, a
     //   ClosePath: Z, z
     function D(op: Char; const points: T2dPoints): TsvgPath;
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -222,12 +239,13 @@ type
     // of connected straight line segments.
     // The last point is connected to the first point.
     function Polygon: TsvgPolygon;
+    // The SVG <text> element draws a graphics element consisting of text.
+    function Text(x, y: Double; const text, cls: string): TsvgText;
     // The <path> SVG element is the generic element to define a shape.
     // All the basic shapes can be created with a path element.
     function Path: TsvgPath;
-    // The SVG <text> element draws a graphics element consisting of text.
-    function Text(x, y: Double; const text, cls: string): TsvgText;
-    function ToString: string;
+    // generate svg element
+    function ToString: string; override;
   end;
 
 {$EndRegion}
@@ -317,6 +335,11 @@ begin
     Point(points[i]);
 end;
 
+function TsvgPoly.ToString: string;
+begin
+
+end;
+
 {$EndRegion}
 
 {$Region 'TsvgPolyline'}
@@ -326,9 +349,108 @@ begin
   inherited Create(False);
 end;
 
+function TsvgPolyline.ToString: string;
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgPolygon'}
+
+constructor TsvgPolygon.Create;
+begin
+  inherited Create(True);
+end;
+
+function TsvgPolygon.ToString: string;
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgCircle'}
+
+constructor TsvgCircle.Create(cx, cy, r: Double);
+begin
+  inherited Create;
+  Fcx := cx;
+  Fcy := cy;
+  Fr := r;
+end;
+
+function TsvgCircle.ToString: string;
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgEllipse'}
+
+constructor TsvgEllipse.Create(cx, cy, rx, ry: Double);
+begin
+  inherited Create;
+  Fcx := cx;
+  Fcy := cy;
+  Frx := rx;
+  Fry := ry;
+end;
+
+function TsvgEllipse.ToString: string;
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgLine'}
+
+constructor TsvgLine.Create(x1, y1, x2, y2: Double);
+begin
+  inherited Create;
+  Fx1 := x1;
+  Fy1 := y1;
+  Fx2 := x2;
+  Fy2 := y2;
+end;
+
+function TsvgLine.ToString: string;
+begin
+
+end;
+
+{$EndRegion}
+
+{$Region 'TsvgText'}
+
+constructor TsvgText.Create(x, y: Double; const text: string);
+begin
+  inherited Create;
+  Fx := x;
+  Fy := y;
+  Ftext := text;
+end;
+
+function TsvgText.Cls(const value: string): TsvgText;
+begin
+  Fcls := value;
+end;
+
+function TsvgText.ToString: string;
+begin
+
+end;
+
 {$EndRegion}
 
 {$Region 'TsvgPath'}
+
+constructor TsvgPath.Create(x, y: Double; const text: string);
+begin
+
+end;
 
 function TsvgPath.D(op: Char; const points: T2dPoints): TsvgPath;
 var
@@ -339,11 +461,7 @@ begin
   FOps := FOps + [item];
 end;
 
-{$EndRegion}
-
-{$Region 'TsvgText'}
-
-function TsvgText.Cls(const value: string): TsvgText;
+function TsvgPath.ToString: string;
 begin
 
 end;
