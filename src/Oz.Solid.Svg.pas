@@ -37,7 +37,6 @@ type
     FFill: string;
     FStroke: string;
     FStrokeWidth: Double;
-    sb: TStringBuilder;
   public
     // presentation attribute that defines the color
     function Fill(const color: string): TsvgShape;
@@ -46,7 +45,7 @@ type
     // presentation attribute defining the width of the stroke to be applied to the shape
     function StrokeWidth(const Width: Double): TsvgShape;
     // generate svg element
-    procedure Gen; virtual;
+    procedure Gen(sb: TStringBuilder); virtual;
   end;
 
 {$EndRegion}
@@ -65,7 +64,7 @@ type
     // The y radius of the corners of the rectangle
     function Ry(const radius: Double): TsvgRect;
     // generate svg element
-    procedure Gen; override;
+    procedure Gen(sb: TStringBuilder); override;
   end;
 
 {$EndRegion}
@@ -83,7 +82,7 @@ type
     function Point(const pt: T2i): TsvgPoly; overload;
     function Points(const points: T2dPoints): TsvgPoly;
     // generate svg element
-    procedure Gen; override;
+    procedure Gen(sb: TStringBuilder); override;
   end;
 
 {$EndRegion}
@@ -116,7 +115,7 @@ type
   public
     constructor Create(cx, cy, r: Double);
     // generate svg element
-    procedure Gen; override;
+    procedure Gen(sb: TStringBuilder); override;
   end;
 
 {$EndRegion}
@@ -132,7 +131,7 @@ type
   public
     constructor Create(cx, cy, rx, ry: Double);
     // generate svg element
-    procedure Gen; override;
+    procedure Gen(sb: TStringBuilder); override;
   end;
 
 {$EndRegion}
@@ -148,7 +147,7 @@ type
   public
     constructor Create(x1, y1, x2, y2: Double);
     // generate svg element
-    procedure Gen; override;
+    procedure Gen(sb: TStringBuilder); override;
   end;
 
 {$EndRegion}
@@ -165,7 +164,7 @@ type
     constructor Create(x, y: Double; const text: string);
     function Cls(const value: string): TsvgText;
     // generate svg element
-    procedure Gen; override;
+    procedure Gen(sb: TStringBuilder); override;
   end;
 
 {$EndRegion}
@@ -191,7 +190,7 @@ type
     //   ClosePath: Z, z
     function D(op: Char; const points: T2dPoints): TsvgPath;
     // generate svg element
-    procedure Gen; override;
+    procedure Gen(sb: TStringBuilder); override;
   end;
 
 {$EndRegion}
@@ -250,11 +249,10 @@ type
 {$Region 'TsvgBuilder'}
 
   TSbHelper = class helper for TStringBuilder
-  const
-    DF = '%.8f';
   public
     procedure StrAttr(const name, value: string);
     procedure NumAttr(const name: string; value: Double; def: Double = 0.0);
+    procedure Num(value: Double);
     procedure Text(const value: string);
     procedure Point(const Pt: T2dPoint);
   end;
@@ -269,6 +267,9 @@ function StrToXml(const s: string): string;
 {$EndRegion}
 
 implementation
+
+const
+  DF = '%.8f';
 
 {$Region 'Sbrouitines'}
 
@@ -332,6 +333,11 @@ end;
 
 {$Region 'TSbHelper'}
 
+procedure TSbHelper.Num(value: Double);
+begin
+  Append(' ' + FormatDouble(value, DF));
+end;
+
 procedure TSbHelper.NumAttr(const name: string; value, def: Double);
 begin
   if SameValue(value, def) then exit;
@@ -376,7 +382,7 @@ begin
   Result := Self;
 end;
 
-procedure TsvgShape.Gen;
+procedure TsvgShape.Gen(sb: TStringBuilder);
 begin
   sb.StrAttr('fill', FFill);
   sb.StrAttr('stroke', FStroke);
@@ -408,14 +414,14 @@ begin
   Result := Self;
 end;
 
-procedure TsvgRect.Gen;
+procedure TsvgRect.Gen(sb: TStringBuilder);
 begin
   sb.Append('<rect');
   sb.NumAttr('x', Fx);
   sb.NumAttr('y', Fy);
   sb.NumAttr('width', Fwidth);
   sb.NumAttr('height', Fheight);
-  inherited Gen;
+  inherited Gen(sb);
   sb.AppendLine('/>');
 end;
 
@@ -456,7 +462,7 @@ begin
   Result := Self;
 end;
 
-procedure TsvgPoly.Gen;
+procedure TsvgPoly.Gen(sb: TStringBuilder);
 var
   i: Integer;
 begin
@@ -466,7 +472,7 @@ begin
     sb.Append('<polyline');
   for i := 0 to High(FPoints) do
     sb.Point(FPoints[i]);
-  inherited Gen;
+  inherited Gen(sb);
   sb.AppendLine('/>');
 end;
 
@@ -500,13 +506,13 @@ begin
   Fr := r;
 end;
 
-procedure TsvgCircle.Gen;
+procedure TsvgCircle.Gen(sb: TStringBuilder);
 begin
   sb.Append('<circle');
   sb.NumAttr('cx', Fcx);
   sb.NumAttr('cy', Fcy);
   sb.NumAttr('r', Fr);
-  inherited Gen;
+  inherited Gen(sb);
   sb.AppendLine('/>');
 end;
 
@@ -523,14 +529,14 @@ begin
   Fry := ry;
 end;
 
-procedure TsvgEllipse.Gen;
+procedure TsvgEllipse.Gen(sb: TStringBuilder);
 begin
   sb.Append('<ellipse');
   sb.NumAttr('cx', Fcx);
   sb.NumAttr('cy', Fcy);
   sb.NumAttr('rx', Frx);
   sb.NumAttr('ry', Fry);
-  inherited Gen;
+  inherited Gen(sb);
   sb.AppendLine('/>');
 end;
 
@@ -547,14 +553,14 @@ begin
   Fy2 := y2;
 end;
 
-procedure TsvgLine.Gen;
+procedure TsvgLine.Gen(sb: TStringBuilder);
 begin
   sb.Append('<line');
   sb.NumAttr('x1', Fx1);
   sb.NumAttr('y1', Fy1);
   sb.NumAttr('x2', Fx2);
   sb.NumAttr('y2', Fy2);
-  inherited Gen;
+  inherited Gen(sb);
   sb.AppendLine('/>');
 end;
 
@@ -576,12 +582,12 @@ begin
   Result := Self;
 end;
 
-procedure TsvgText.Gen;
+procedure TsvgText.Gen(sb: TStringBuilder);
 begin
   sb.Append('<text');
   sb.NumAttr('x', Fx);
   sb.NumAttr('y', Fy);
-  inherited Gen;
+  inherited Gen(sb);
   sb.Append('>');
   sb.Append(Ftext);
   sb.AppendLine('</text>');
@@ -607,7 +613,7 @@ begin
   Result := Self;
 end;
 
-procedure TsvgPath.Gen;
+procedure TsvgPath.Gen(sb: TStringBuilder);
 var
   i, j, n: Integer;
   item: TPathOp;
@@ -624,7 +630,7 @@ begin
       sb.Point(item.points[j]);
   end;
   sb.AppendLine('"');
-  inherited Gen;
+  inherited Gen(sb);
   sb.AppendLine('/>');
 end;
 
@@ -697,11 +703,31 @@ end;
 
 function TsvgBuilder.ToString: string;
 var
+  i: Integer;
   sb: TStringBuilder;
+  shape: TsvgShape;
 begin
   sb := TStringBuilder.Create;
   try
-
+    sb.Append('?xml version="1.0" standalone="no"?>');
+    sb.Append('<svg');
+    sb.NumAttr('width', FWidth);
+    sb.NumAttr('height', FHeight);
+    if FViewBox.width > 0 then
+    begin
+      sb.StrAttr('viewBox', Format('%s %s %s %s', [
+        FormatDouble(FViewBox.min_x, DF),
+        FormatDouble(FViewBox.min_y, DF),
+        FormatDouble(FViewBox.width, DF),
+        FormatDouble(FViewBox.height, DF)]));
+    end;
+    sb.AppendLine('>');
+    for i := 0 to FShapes.Count - 1 do
+    begin
+      shape := FShapes.Items[i] as TsvgShape;
+      shape.Gen(sb);
+    end;
+    sb.Append('</svg>');
     Result := sb.ToString;
   finally
     sb.Free;

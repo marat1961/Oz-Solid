@@ -21,7 +21,7 @@ unit TestUtils;
 interface
 
 uses
-  System.Classes, System.Math, TestFramework, Oz.Solid.Types;
+  System.Classes, System.Math, TestFramework, Oz.Solid.Types, Oz.Solid.Svg;
 
 {$Region 'Test2dPoint'}
 
@@ -36,6 +36,19 @@ type
     procedure TestClosestPointOnLine;
     procedure TestIntersectLines;
     procedure TestIntersectSegments;
+  end;
+
+{$EndRegion}
+
+{$Region 'Test2dPoint'}
+
+type
+  TestSvg = class(TTestCase)
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestGenPolygon;
   end;
 
 {$EndRegion}
@@ -173,7 +186,7 @@ begin
   t := T2dPoint.From(2, 2);
   CheckTrue(cross.DistanceTo(t) < 1E-6);
 
-  // 5. extreme points coincide
+  // 6. extreme points coincide
   a := T2dPoint.From(1, 1);
   b := T2dPoint.From(3, 3);
   c := T2dPoint.From(1, 1);
@@ -186,7 +199,39 @@ end;
 
 {$EndRegion}
 
+{ TestSvg }
+
+procedure TestSvg.SetUp;
+begin
+  inherited;
+
+end;
+
+procedure TestSvg.TearDown;
+begin
+  inherited;
+
+end;
+
+procedure TestSvg.TestGenPolygon;
+var
+  b: TsvgBuilder;
+  List: Tstrings;
+begin
+  b := TsvgBuilder.Create(12, 4);
+  b.ViewBox(0, 0, 1200, 400);
+  b.Rect(1, 1, 1198, 398).Fill('none').Stroke('blue').StrokeWidth(2);
+  List := TstringList.Create;
+  try
+    List.Text := b.ToString;
+    List.SaveToFile('d:\test\polygon.svg');
+  finally
+    List.Free;
+  end;
+end;
+
 initialization
   RegisterTest(Test2dPoint.Suite);
+  RegisterTest(TestSvg.Suite);
 
 end.
