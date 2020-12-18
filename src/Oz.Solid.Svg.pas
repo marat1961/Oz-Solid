@@ -176,7 +176,7 @@ type
   type
     TPathOp = record
       op: Char;
-      points: T2dPoints
+      points: T2dPoints;
     end;
   private
     FOps: TArray<TPathOp>;
@@ -281,12 +281,13 @@ begin
   while (P^ >= '0') and (P^ <= '9') do Inc(P);
   if (P^ = '.') or (P^ = ',') then
   begin
+    P^ := '.';
     Inc(P);
     while (P^ >= '0') and (P^ <= '9') do Inc(P);
     repeat
       Dec(P);
     until P^ <> '0';
-    if (P^ = '.') or (P^ = ',') then Dec(P);
+    if P^ = '.' then Dec(P);
     SetLength(Result, P - PChar(Result) + 1);
   end;
 end;
@@ -334,13 +335,13 @@ end;
 procedure TSbHelper.NumAttr(const name: string; value, def: Double);
 begin
   if SameValue(value, def) then exit;
-  AppendFormat(' %s=''%s''', [name, FormatDouble(value, DF)]);
+  AppendFormat(' %s="%s"', [name, FormatDouble(value, DF)]);
 end;
 
 procedure TSbHelper.StrAttr(const name, value: string);
 begin
   if value = '' then exit;
-  AppendFormat(' %s=''%s''', [name, StrToXml(value)]);
+  AppendFormat(' %s="%s"', [name, StrToXml(value)]);
 end;
 
 procedure TSbHelper.Text(const value: string);
@@ -350,7 +351,7 @@ end;
 
 procedure TSbHelper.Point(const Pt: T2dPoint);
 begin
-  AppendFormat(' %s %s', [FormatDouble(Pt.x, DF), FormatDouble(pt.y, DF)]);
+  AppendFormat(' %s,%s', [FormatDouble(Pt.x, DF), FormatDouble(pt.y, DF)]);
 end;
 
 {$EndRegion}
@@ -607,8 +608,24 @@ begin
 end;
 
 procedure TsvgPath.Gen;
+var
+  i, j, n: Integer;
+  item: TPathOp;
 begin
-
+  n := Length(FOps);
+  if n = 0 then exit;
+  sb.Append('<path d="');
+  for i := 0 to n do
+  begin
+    n := Length(item.points);
+    if n = 0 then continue;
+    sb.AppendFormat(' %s', [item.op]);
+    for j := 0 to High(item.points) do
+      sb.Point(item.points[j]);
+  end;
+  sb.AppendLine('"');
+  inherited Gen;
+  sb.AppendLine('/>');
 end;
 
 {$EndRegion}
