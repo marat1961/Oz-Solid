@@ -40,7 +40,7 @@ type
 
 {$EndRegion}
 
-{$Region 'Test2dPoint'}
+{$Region 'TestSvg'}
 
 type
   TestSvg = class(TTestCase)
@@ -199,7 +199,7 @@ end;
 
 {$EndRegion}
 
-{ TestSvg }
+{$Region 'TestSvg'}
 
 procedure TestSvg.SetUp;
 begin
@@ -229,6 +229,8 @@ begin
     List.Free;
   end;
 end;
+
+{$EndRegion}
 
 initialization
   RegisterTest(Test2dPoint.Suite);

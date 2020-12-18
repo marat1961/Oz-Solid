@@ -208,6 +208,8 @@ type
 
 {$Region 'TsvgBuilder'}
 
+  TMeasureUnit = (muCustom, muPixel, muCentimeter, muMillimeter,
+     muInch, muPica, muPoint, muFontEmHeight, muFontXHeight, muPercent);
   TsvgBuilder = class
   private
     FWidth: Double;
@@ -215,7 +217,7 @@ type
     FViewBox: TViewBox;
     FShapes: TObjectList;
   public
-    constructor Create(width, height: Double);
+    constructor Create(width, height: Double; u: TUnit);
     destructor Destroy; override;
     // The viewBox attribute defines the position and dimension,
     // in user space, of an SVG viewport.
@@ -664,41 +666,49 @@ end;
 function TsvgBuilder.Rect(x, y, width, height: Double): TsvgRect;
 begin
   Result := TsvgRect.Create(x, y, width, height);
+  FShapes.Add(Result);
 end;
 
 function TsvgBuilder.Circle(cx, cy, r: Double): TsvgCircle;
 begin
   Result := TsvgCircle.Create(cx, cy, r);
+  FShapes.Add(Result);
 end;
 
 function TsvgBuilder.Ellipse(cx, cy, rx, ry: Double): TsvgEllipse;
 begin
   Result := TsvgEllipse.Create(cx, cy, rx, ry);
+  FShapes.Add(Result);
 end;
 
 function TsvgBuilder.Line(x1, y1, x2, y2: Double): TsvgLine;
 begin
   Result := TsvgLine.Create(x1, y1, x2, y2);
+  FShapes.Add(Result);
 end;
 
 function TsvgBuilder.Polyline: TsvgPolyline;
 begin
   Result := TsvgPolyline.Create;
+  FShapes.Add(Result);
 end;
 
 function TsvgBuilder.Polygon: TsvgPolygon;
 begin
   Result := TsvgPolygon.Create;
+  FShapes.Add(Result);
 end;
 
 function TsvgBuilder.Path: TsvgPath;
 begin
   Result := TsvgPath.Create;
+  FShapes.Add(Result);
 end;
 
 function TsvgBuilder.Text(x, y: Double; const text: string): TsvgText;
 begin
   Result := TsvgText.Create(x, y, text);
+  FShapes.Add(Result);
 end;
 
 function TsvgBuilder.ToString: string;
@@ -709,7 +719,7 @@ var
 begin
   sb := TStringBuilder.Create;
   try
-    sb.Append('?xml version="1.0" standalone="no"?>');
+    sb.AppendLine('<?xml version="1.0" standalone="no"?>');
     sb.Append('<svg');
     sb.NumAttr('width', FWidth);
     sb.NumAttr('height', FHeight);
@@ -721,7 +731,8 @@ begin
         FormatDouble(FViewBox.width, DF),
         FormatDouble(FViewBox.height, DF)]));
     end;
-    sb.AppendLine('>');
+    sb.Appendline;
+    sb.AppendLine('xmlns="http://www.w3.org/2000/svg" version="1.1">');
     for i := 0 to FShapes.Count - 1 do
     begin
       shape := FShapes.Items[i] as TsvgShape;
