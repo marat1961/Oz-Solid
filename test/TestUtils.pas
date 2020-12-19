@@ -48,6 +48,7 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
   published
+    procedure TestGenRect;
     procedure TestGenPolygon;
   end;
 
@@ -204,29 +205,44 @@ end;
 procedure TestSvg.SetUp;
 begin
   inherited;
-
 end;
 
 procedure TestSvg.TearDown;
 begin
   inherited;
+end;
 
+procedure TestSvg.TestGenRect;
+const
+  filename = 'd:\test\rect.svg';
+var
+  b: TsvgBuilder;
+begin
+  b := TsvgBuilder.Create(1200, 400, TMeasureUnit.muCentimeter);
+  try
+    b.ViewBox(0, 0, 1200, 400);
+    b.Rect(1, 1, 1198, 398).Fill('none').Stroke('blue').StrokeWidth(2);
+    b.SaveToFile(filename);
+  finally
+    b.Free;
+  end;
 end;
 
 procedure TestSvg.TestGenPolygon;
+const
+  filename = 'd:\test\polygon.svg';
 var
   b: TsvgBuilder;
-  List: Tstrings;
 begin
-  b := TsvgBuilder.Create(12, 4);
-  b.ViewBox(0, 0, 1200, 400);
-  b.Rect(1, 1, 1198, 398).Fill('none').Stroke('blue').StrokeWidth(2);
-  List := TstringList.Create;
+  b := TsvgBuilder.Create(300, 200, TMeasureUnit.muCentimeter);
   try
-    List.Text := b.ToString;
-    List.SaveToFile('d:\test\polygon.svg');
+    b.ViewBox(0, 0, 300, 200);
+    b.Polygon.Point(0, 100).Point(50, 25).Point(50, 75).Point(100, 0);
+    b.Polygon.Point(100, 100).Point(150, 25).Point(150, 75).Point(200, 0).
+    Fill('none').Stroke('black');
+    b.SaveToFile(filename);
   finally
-    List.Free;
+    b.Free;
   end;
 end;
 

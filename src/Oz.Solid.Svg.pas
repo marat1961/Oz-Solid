@@ -210,14 +210,16 @@ type
 
   TMeasureUnit = (muCustom, muPixel, muCentimeter, muMillimeter,
      muInch, muPica, muPoint, muFontEmHeight, muFontXHeight, muPercent);
+
   TsvgBuilder = class
   private
+    FMu: TMeasureUnit;
     FWidth: Double;
     FHeight: Double;
     FViewBox: TViewBox;
     FShapes: TObjectList;
   public
-    constructor Create(width, height: Double; u: TUnit);
+    constructor Create(width, height: Double; mu: TMeasureUnit);
     destructor Destroy; override;
     // The viewBox attribute defines the position and dimension,
     // in user space, of an SVG viewport.
@@ -242,8 +244,10 @@ type
     // The <path> SVG element is the generic element to define a shape.
     // All the basic shapes can be created with a path element.
     function Path: TsvgPath;
-    // generate svg element
+    // generate svg to string
     function ToString: string; override;
+    // generate svg and save it to file
+    procedure SaveToFile(const filename: string);
   end;
 
 {$EndRegion}
@@ -359,7 +363,7 @@ end;
 
 procedure TSbHelper.Point(const Pt: T2dPoint);
 begin
-  AppendFormat(' %s,%s', [FormatDouble(Pt.x, DF), FormatDouble(pt.y, DF)]);
+  AppendFormat(' %s %s', [FormatDouble(Pt.x, DF), FormatDouble(pt.y, DF)]);
 end;
 
 {$EndRegion}
@@ -472,8 +476,10 @@ begin
     sb.Append('<polygon')
   else
     sb.Append('<polyline');
+  sb.Append(' points="');
   for i := 0 to High(FPoints) do
     sb.Point(FPoints[i]);
+  sb.Append('"');
   inherited Gen(sb);
   sb.AppendLine('/>');
 end;
@@ -640,9 +646,10 @@ end;
 
 {$Region 'TsvgBuilder'}
 
-constructor TsvgBuilder.Create(width, height: Double);
+constructor TsvgBuilder.Create(width, height: Double; mu: TMeasureUnit);
 begin
   inherited Create;
+  FMu := mu;
   FWidth := width;
   FHeight := height;
   FShapes := TObjectList.Create;
@@ -731,8 +738,7 @@ begin
         FormatDouble(FViewBox.width, DF),
         FormatDouble(FViewBox.height, DF)]));
     end;
-    sb.Appendline;
-    sb.AppendLine('xmlns="http://www.w3.org/2000/svg" version="1.1">');
+    sb.AppendLine(' xmlns="http://www.w3.org/2000/svg" version="1.1">');
     for i := 0 to FShapes.Count - 1 do
     begin
       shape := FShapes.Items[i] as TsvgShape;
@@ -742,6 +748,19 @@ begin
     Result := sb.ToString;
   finally
     sb.Free;
+  end;
+end;
+
+procedure TsvgBuilder.SaveToFile(const filename: string);
+var
+  List: Tstrings;
+begin
+  List := TstringList.Create;
+  try
+    List.Text := Self.ToString;
+    List.SaveToFile(filename);
+  finally
+    List.Free;
   end;
 end;
 
