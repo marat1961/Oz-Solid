@@ -38,6 +38,7 @@ type
     FStroke: string;
     FStrokeWidth: Double;
   public
+    constructor Create;
     // presentation attribute that defines the color
     function Fill(const color: string): TsvgShape;
     // presentation attribute defining the color used to paint the outline of the shape
@@ -370,6 +371,12 @@ end;
 
 {$Region 'TsvgShape'}
 
+constructor TsvgShape.Create;
+begin
+  inherited;
+  FStrokeWidth := 1.0;
+end;
+
 function TsvgShape.Fill(const color: string): TsvgShape;
 begin
   FFill := color;
@@ -437,6 +444,7 @@ end;
 
 constructor TsvgPoly.Create(Polygon: Boolean);
 begin
+  inherited Create;
   FPolygon := Polygon;
   FPoints := [];
 end;
