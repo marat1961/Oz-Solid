@@ -21,7 +21,8 @@ unit TestUtils;
 interface
 
 uses
-  System.Classes, System.Math, TestFramework, Oz.Solid.Types, Oz.Solid.Svg;
+  System.Classes, System.Math, TestFramework,
+  Oz.Solid.Types, Oz.Solid.Svg, Oz.Solid.VectorInt, Oz.Solid.Boolean;
 
 {$Region 'Test2dPoint'}
 
@@ -50,6 +51,19 @@ type
   published
     procedure TestGenRect;
     procedure TestGenPolygon;
+  end;
+
+{$EndRegion}
+
+{$Region 'TestBool'}
+
+type
+  TestBool = class(TTestCase)
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test;
   end;
 
 {$EndRegion}
@@ -248,8 +262,88 @@ end;
 
 {$EndRegion}
 
+{$Region 'TestBool'}
+
+procedure TestBool.SetUp;
+begin
+  inherited;
+
+end;
+
+procedure TestBool.TearDown;
+begin
+  inherited;
+
+end;
+
+procedure TestBool.Test;
+const
+  a1: array [0..3] of T2i = (
+    (x: -7; y: 8), (x: -7; y: -3), (x: 2; y: -3), (x: 2; y: 8));
+  a2: array [0..3] of T2i = (
+    (x: -5; y: 6), (x: 0; y: 6), (x: 0; y: 0), (x: -5; y: 0));
+  ba: array [0..10] of T2i = (
+    (x: -5; y: -6), (x: 7; y: -6), (x: 7; y: 4), (x: -5; y: 4),
+    (x: 0; y: 0), (x: 0; y: 2), (x: 5; y: 2), (x: 5; y: -4),
+    (x: 0; y: -4), (x: 0; y: 0), (x: -5; y: 0));
+var
+  A, B, R: P2Polygon;
+  i: Integer;
+  pline: P2Contour;
+  err: TErrorNumber;
+begin
+  A := nil;
+  B := nil;
+  pline := nil;
+
+  // construct 1st polygon
+  for i := 0 to High(a1) do
+    T2Contour.Incl(pline, a1[i]);
+  pline.Prepare;
+  if not pline.IsOuter then
+    // make sure the contour is outer
+    pline.Invert;
+  T2Polygon.InclPline(A, pline);
+  pline := nil;
+  for i := 0 to High(a2) do
+    T2Contour.Incl(pline, a2[i]);
+  pline.Prepare;
+  if pline.IsOuter then
+    // make sure the contour is a hole
+    pline.Invert();
+  T2Polygon.InclPline(A, pline);
+
+  // construct 2nd polygon
+  pline := nil;
+  for i := 0 to High(ba) do
+    T2Contour.Incl(pline, ba[i]);
+  pline.Prepare;
+  if not pline.IsOuter then
+    // make sure the contour is outer
+    pline.Invert;
+  T2Polygon.InclPline(B, pline);
+
+  // do Boolean operation XOR
+  R := nil;
+  err := T2Polygon.Bool(A, B, R, T2Polygon.TBoolOp.opXor);
+  CheckTrue(err = ecOk);
+
+  // triangulate R
+  err := T2Polygon.Triangulate(R);
+  CheckTrue(err = ecOk);
+
+  // delete all polygons
+  T2Polygon.Del(&A);
+  T2Polygon.Del(&B);
+  T2Polygon.Del(&R);
+
+end;
+
+{$EndRegion}
+
 initialization
   RegisterTest(Test2dPoint.Suite);
   RegisterTest(TestSvg.Suite);
+  RegisterTest(TestBool.Suite);
 
 end.
