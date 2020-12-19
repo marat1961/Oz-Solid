@@ -22,7 +22,7 @@ interface
 {$Region 'Uses'}
 
 uses
-  System.Classes, System.SysUtils, Oz.Solid.VectorInt;
+  System.Classes, System.SysUtils, Oz.Solid.VectorInt, Oz.Solid.Svg;
 
 {$EndRegion}
 
@@ -344,10 +344,14 @@ begin
 end;
 
 procedure PrintVertices;
+const
+  filename = 'd:\test\verices.svg';
 var
   // Pointers to vertices, edges, faces.
   v: tVertex;
   xmin, ymin, xmax, ymax: Integer;
+  svg: TsvgBuilder;
+  polygon: TsvgPolygon;
 begin
   // Compute bounding box for Encapsulated SVG.
   v := vertices;
@@ -365,7 +369,21 @@ begin
     v := v.next;
   until v = vertices;
 
-  // SVG header
+  svg := TsvgBuilder.Create(300, 200, TMeasureUnit.muCentimeter);
+  try
+    svg.ViewBox(xmin, ymin, xmax, ymax);
+    polygon := svg.Polygon;
+    v := vertices;
+    repeat
+      polygon.Point(v.v);
+      v := v.next;
+    until v = vertices;
+    polygon.Fill('none').Stroke('black');
+    svg.SaveToFile(filename);
+  finally
+    svg.Free;
+  end;
+
 //  writeln(Format('BoundingBox: %d %d %d %d\n', xmin, ymin, xmax, ymax);
 //  writeln(Format('EndComments\n');
 //  writeln(Format('.00 .00 setlinewidth\n');
@@ -419,8 +437,7 @@ function AreaSign(a, b, c: t2i): Integer;
 var
   area2: Double;
 begin
-  area2 := (b.x - a.x) * Double(c.y - a.y) -
-           (c.x - a.x) * Double(b.x - a.x);
+  area2 := (b.x - a.x) * Double(c.y - a.y) - (c.x - a.x) * Double(b.x - a.x);
   // The area should be an integer.
   if area2 > 0.5 then
     Result := 1

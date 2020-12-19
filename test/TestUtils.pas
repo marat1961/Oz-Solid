@@ -55,6 +55,19 @@ type
 
 {$EndRegion}
 
+{$Region 'EarTri'}
+
+type
+  TestEarTri = class(TTestCase)
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test;
+  end;
+
+{$EndRegion}
+
 {$Region 'TestBool'}
 
 type
@@ -75,13 +88,11 @@ implementation
 procedure Test2dPoint.SetUp;
 begin
   inherited;
-
 end;
 
 procedure Test2dPoint.TearDown;
 begin
   inherited;
-
 end;
 
 procedure Test2dPoint.TestCollinearity;
@@ -258,6 +269,25 @@ begin
   finally
     b.Free;
   end;
+end;
+
+{$EndRegion}
+
+{$Region 'EarTri'}
+
+procedure TestEarTri.SetUp;
+begin
+  inherited;
+end;
+
+procedure TestEarTri.TearDown;
+begin
+  inherited;
+end;
+
+procedure TestEarTri.Test;
+begin
+
 end;
 
 {$EndRegion}
