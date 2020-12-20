@@ -158,6 +158,8 @@ var
 begin
   nvertices := CalcBounds(vertices);
   svg.ViewBox(xmin, ymin, xmax, ymax);
+  svg.Width := width;
+  svg.Width := height;
   AddVertices(vertices);
   svg.SaveToFile(filename + '.svg');
   AddVerticesToLog(vertices, nvertices);

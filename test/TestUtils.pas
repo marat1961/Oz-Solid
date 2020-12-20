@@ -293,6 +293,12 @@ var
 begin
   filename := '..\..\..\data\i_tri';
   EarTri.Build(filename);
+  filename := '..\..\..\data\i_sq';
+  EarTri.Build(filename);
+  filename := '..\..\..\data\i_snake';
+  EarTri.Build(filename);
+  filename := '..\..\..\data\i_18';
+  EarTri.Build(filename);
 end;
 
 {$EndRegion}

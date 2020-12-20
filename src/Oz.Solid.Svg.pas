@@ -249,6 +249,9 @@ type
     function ToString: string; override;
     // generate svg and save it to file
     procedure SaveToFile(const filename: string);
+    // svg size
+    property Width: Double read FWidth write FWidth;
+    property Height: Double read FHeight write FHeight;
   end;
 
 {$EndRegion}
