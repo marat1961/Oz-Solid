@@ -220,7 +220,7 @@ type
     FViewBox: TViewBox;
     FShapes: TObjectList;
   public
-    constructor Create(width, height: Double; mu: TMeasureUnit);
+    constructor Create(width, height: Double; mu: TMeasureUnit = muCustom);
     destructor Destroy; override;
     // The viewBox attribute defines the position and dimension,
     // in user space, of an SVG viewport.

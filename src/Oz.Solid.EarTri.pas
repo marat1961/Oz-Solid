@@ -28,8 +28,9 @@ uses
 
 {$T+}
 
-type
+{$Region 'TsvgBuilder'}
 
+type
   tVertex = ^tsVertex;
   tsVertex = record
     vnum: Integer; // Index
@@ -38,12 +39,47 @@ type
     next, prev: tVertex;
   end;
 
+{$EndRegion}
+
+{$Region 'TDump'}
+
+  TDump = record
+  strict private
+    filename: string;
+    svg: TsvgBuilder;
+    log: TStrings;
+    xmin, ymin, xmax, ymax, width, height: Integer;
+    // Compute bounding box for Encapsulated SVG.
+    function CalcBounds(vertices: tVertex): Integer;
+    // Uses the vnum indices corresponding to the order
+    // in which the vertices were input.
+    procedure AddVertices(vertices: tVertex);
+    // Add vertices to log
+    procedure AddVerticesToLog(vertices: tVertex; nvertices: Integer);
+  public
+    procedure Init(const filename: string);
+    procedure Free;
+    // Prints all
+    procedure PrintAll(vertices: tVertex);
+    // Add edge to svg
+    procedure AddEdge(a, b: tVertex);
+    // Prints out the vertices
+    procedure PrintPoly(vertices: tVertex);
+  end;
+
+{$EndRegion}
+
+{$Region 'TEarTri'}
+
   TEarTri = record
   var
     vertices: tVertex;  // 'Head' of circular list.
     nvertices: Integer; // Total number of polygon vertices.
+    dump: TDump;
+  public
+    procedure Build(const filename: string);
   private
-    // Returns twice the signed area of the triangle determined by a, b, c.
+    // Returns twice the signed area of the triangle determined by a, b, c.
     // The area is positive if a, b, c are oriented ccw, negative if cw,
     // and zero if the points are collinear.
     function Area2(a, b, c: t2i): Integer;
@@ -75,39 +111,140 @@ type
     function InCone(a, b: tVertex): Boolean;
     // Returns True iff (a,b) is a proper internal diagonal.
     function Diagonal(a, b: tVertex): Boolean;
-    // ReadVertices: Reads in the vertices, and links them into a circular
+    // Reads in the vertices, and links them into a circular
     // list with MakeNullVertex. There is no need for the # of vertices
     // to be the first line: the function looks for EOF instead.
-    procedure ReadVertices(const filename: string);
+    function ReadVertices(const filename: string): Integer;
     // MakeNullVertex: Makes a vertex.
     function MakeNullVertex: tVertex;
-    // For debugging; not currently invoked.
-    procedure PrintPoly;
-    // Print: Prints out the vertices. Uses the vnum indices
-    // corresponding to the order in which the vertices were input.
-    // Output is in SVG format.
-    procedure PrintVertices;
-    procedure PrintDiagonal(a, b: tVertex);
     function AreaPoly2: Integer;
     function AreaSign(a, b, c: t2i): Integer;
     procedure Add(head, p: tVertex);
-  public
-    procedure Build(const filename: string);
+    procedure Init(const filename: string);
   end;
+
+{$EndRegion}
 
 implementation
 
+{$Region 'TDump'}
+
+procedure TDump.Init(const filename: string);
+begin
+  Self.filename := filename;
+  svg := TsvgBuilder.Create(100, 100);
+  log := TStringList.Create;
+end;
+
+procedure TDump.Free;
+begin
+  FreeAndNil(svg);
+  FreeAndNil(log);
+end;
+
+procedure TDump.AddEdge(a, b: tVertex);
+begin
+  log.Add(Format('Diagonal: (%d, %d)', [a.vnum, b.vnum]));
+  svg.Line(a.v.x, a.v.y, b.v.x, b.v.y);
+end;
+
+procedure TDump.PrintAll(vertices: tVertex);
+var
+  nvertices: Integer;
+begin
+  nvertices := CalcBounds(vertices);
+  svg.ViewBox(xmin, ymin, xmax, ymax);
+  AddVertices(vertices);
+  svg.SaveToFile(filename + '.svg');
+  AddVerticesToLog(vertices, nvertices);
+  log.SaveToFile(filename + '.txt');
+end;
+
+function TDump.CalcBounds(vertices: tVertex): Integer;
+var
+  v: tVertex;
+begin
+  Result := 0;
+  v := vertices;
+  xmin := v.v.x; xmax := v.v.x;
+  ymin := v.v.y; ymax := v.v.y;
+  repeat
+    if v.v.x > xmax then
+      xmax := v.v.x
+    else if v.v.x < xmin then
+      xmin := v.v.x;
+    if v.v.y > ymax then
+      ymax := v.v.y
+    else if v.v.y < ymin then
+      ymin := v.v.y;
+    v := v.next;
+    Inc(Result);
+  until v = vertices;
+  width := xmax - xmin;
+  height := ymax - ymin;
+end;
+
+procedure TDump.AddVertices(vertices: tVertex);
+var
+  polygon: TsvgPolygon;
+  v: tVertex;
+begin
+  // add vertices
+  polygon := svg.Polygon;
+  v := vertices;
+  repeat
+    polygon.Point(v.v);
+    v := v.next;
+  until v = vertices;
+  polygon.Fill('none').Stroke('black');
+end;
+
+procedure TDump.AddVerticesToLog(vertices: tVertex; nvertices: Integer);
+var
+  v: tVertex;
+begin
+  // Output vertex info as a .
+  log.Add(Format('BoundingBox: %d %d %d %d', [xmin, ymin, xmax, ymax]));
+  log.Add(Format(' number of vertices = %d', [nvertices]));
+  v := vertices;
+  repeat
+    log.Add(Format(' vnum=%5d'#9'x=%5d'#9'y=%5d', [v.vnum, v.v.y, v.v.x]));
+    v := v.next;
+  until v = vertices;
+end;
+
+procedure TDump.PrintPoly(vertices: tVertex);
+var
+  v: tVertex;
+begin
+  writeln('Polygon circular list:');
+  v := vertices;
+  repeat
+    writeln(Format(' vnum=%5d:'#9'tear=%d', [v.vnum, v.ear]));
+    v := v.next;
+  until v = vertices;
+end;
+
+{$EndRegion}
+
+{$Region 'TEarTri'}
+
 procedure TEarTri.Build(const filename: string);
 begin
-  vertices := nil;
-  nvertices := 0;
-  ReadVertices(filename);
-  PrintVertices;
+  Init(filename);
+  dump.PrintAll(vertices);
   writeln(Format('Area of polygon = %g', [0.5 * AreaPoly2]));
   Triangulate;
   writeln;
 end;
-
+
+
+procedure TEarTri.Init(const filename: string);
+begin
+  vertices := nil;
+  nvertices := ReadVertices(filename);
+end;
+
 function TEarTri.Area2(a, b, c: t2i): Integer;
 begin
   Result := (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
@@ -219,7 +356,7 @@ begin
         v3 := v2.next; v4 := v3.next;
         v1 := v2.prev; v0 := v1.prev;
         // (v1,v3) is a diagonal
-        PrintDiagonal(v1, v3);
+        dump.AddEdge(v1, v3);
         // Update earity of diagonal endpoints
         v1.ear := Diagonal(v0, v3);
         v3.ear := Diagonal(v1, v4);
@@ -235,7 +372,7 @@ begin
     if not earfound then
     begin
       writeln('Error in Triangulate: No ear found.');
-      PrintPoly;
+      dump.PrintPoly(vertices);
       Halt;
     end;
   end;
@@ -261,7 +398,7 @@ begin
   Result := InCone(a, b) and InCone(b, a) and Diagonalie(a, b);
 end;
 
-procedure TEarTri.ReadVertices(const filename: string);
+function TEarTri.ReadVertices(const filename: string): Integer;
 var
   v: tVertex;
   i, x, y, vnum: Integer;
@@ -286,16 +423,16 @@ begin
       v.vnum := vnum;
       Inc(vnum);
     end;
-    nvertices := vnum;
-    if nvertices < 3 then
+    if vnum < 3 then
     begin
-      err := Format('Error in ReadVertices: nvertices=%d<3\n', [nvertices]);
+      err := Format('Error in ReadVertices: nvertices=%d<3\n', [vnum]);
       writeln(err);
       raise Exception.Create(err);
     end;
   finally
     str.Free;
   end;
+  Result := vnum;
 end;
 
 procedure TEarTri.Add(head, p: tVertex);
@@ -322,93 +459,6 @@ begin
   New(v);
   Add(vertices, v);
   Result := v;
-end;
-
-procedure TEarTri.PrintPoly;
-var
-  v: tVertex;
-begin
-  writeln('Polygon circular list:');
-  v := vertices;
-  repeat
-    writeln(Format(' vnum=%5d:'#9'tear=%d', [v.vnum, v.ear]));
-    v := v.next;
-  until v = vertices;
-end;
-
-procedure TEarTri.PrintVertices;
-const
-  filename = 'd:\test\verices.svg';
-var
-  // Pointers to vertices, edges, faces.
-  v: tVertex;
-  xmin, ymin, xmax, ymax: Integer;
-  svg: TsvgBuilder;
-  polygon: TsvgPolygon;
-begin
-  // Compute bounding box for Encapsulated SVG.
-  v := vertices;
-  xmin := v.v.x; xmax := v.v.x;
-  ymin := v.v.y; ymax := v.v.y;
-  repeat
-    if v.v.x > xmax then
-      xmax := v.v.x
-    else if v.v.x < xmin then
-      xmin := v.v.x;
-    if v.v.y > ymax then
-      ymax := v.v.y
-    else if v.v.y < ymin then
-      ymin := v.v.y;
-    v := v.next;
-  until v = vertices;
-
-  svg := TsvgBuilder.Create(300, 200, TMeasureUnit.muCentimeter);
-  try
-    svg.ViewBox(xmin, ymin, xmax, ymax);
-    polygon := svg.Polygon;
-    v := vertices;
-    repeat
-      polygon.Point(v.v);
-      v := v.next;
-    until v = vertices;
-    polygon.Fill('none').Stroke('black');
-    svg.SaveToFile(filename);
-  finally
-    svg.Free;
-  end;
-
-//  writeln(Format('BoundingBox: %d %d %d %d\n', xmin, ymin, xmax, ymax);
-//  writeln(Format('EndComments\n');
-//  writeln(Format('.00 .00 setlinewidth\n');
-//  writeln(Format('%d %d translate\n', -xmin+72, -ymin+72 );
-//  // The +72 shifts the figure one inch from the lower left corner
-//
-//  // Output vertex info as a PostScript comment.
-//  writeln(Format('\n number of vertices = %d\n', nvertices);
-//  v = vertices;
-//  repeat
-//    printf( '%% vnum=%5d:\tx=%5d\ty=%5d\n', v.vnum, v.v.x, v.v.y );
-//    v := v.next;
-//  until v = vertices;
-//
-//  // Draw the polygon.
-//  writeln(Format('\n%%Polygon:\n');
-//  writeln(Format('newpath\n');
-//  v = vertices;
-//  writeln(Format('%d\t%d\tmoveto\n', v.v.x, v.v.y );
-//  v = v.next;
-//  repeat
-//      writeln(Format('%d\t%d\tlineto\n', v.v.x, v.v.y );
-//      v = v.next;
-//  until v = vertices;
-//  writeln(Format('closepath stroke\n');
-end;
-
-procedure TEarTri.PrintDiagonal(a, b: tVertex);
-begin
-//  writeln(Format('Diagonal: (%d,%d)\n', a.vnum, b.vnum );
-//  writeln(Format('%d\t%d\tmoveto\n', a.v.x, a.v.y );
-//  writeln(Format('%d\t%d\tlineto\n', b.v.x, b.v.y );
 end;
 
 function TEarTri.AreaPoly2: Integer;
@@ -439,6 +489,8 @@ begin
   else
     Result := 0;
 end;
+
+{$EndRegion}
 
 end.
 

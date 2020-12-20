@@ -291,7 +291,7 @@ procedure TestEarTri.Test;
 var
   filename: string;
 begin
-  filename := 'test.dat';
+  filename := '..\..\..\data\i_tri';
   EarTri.Build(filename);
 end;
 
