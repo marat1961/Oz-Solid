@@ -65,6 +65,10 @@ type
     procedure AddEdge(a, b: tVertex);
     // Prints out the vertices
     procedure PrintPoly(vertices: tVertex);
+    // Debug print
+    procedure Dbp; overload;
+    procedure Dbp(const line: string); overload;
+    procedure Dbp(const fs: string; const args: array of const); overload;
   end;
 
 {$EndRegion}
@@ -72,10 +76,10 @@ type
 {$Region 'TEarTri'}
 
   TEarTri = record
-  var
+  private
+    dump: TDump;
     vertices: tVertex;  // 'Head' of circular list.
     nvertices: Integer; // Total number of polygon vertices.
-    dump: TDump;
   public
     procedure Build(const filename: string);
   private
@@ -119,7 +123,7 @@ type
     function MakeNullVertex: tVertex;
     function AreaPoly2: Integer;
     function AreaSign(a, b, c: t2i): Integer;
-    procedure Add(head, p: tVertex);
+    procedure Add(var head: tVertex; p: tVertex);
     procedure Init(const filename: string);
   end;
 
@@ -217,12 +221,27 @@ procedure TDump.PrintPoly(vertices: tVertex);
 var
   v: tVertex;
 begin
-  writeln('Polygon circular list:');
+  Dbp('Polygon circular list:');
   v := vertices;
   repeat
-    writeln(Format(' vnum=%5d:'#9'tear=%d', [v.vnum, v.ear]));
+    Dbp(' vnum=%5d:'#9'tear=%d', [v.vnum, v.ear]);
     v := v.next;
   until v = vertices;
+end;
+
+procedure TDump.Dbp;
+begin
+  log.Add('');
+end;
+
+procedure TDump.Dbp(const line: string);
+begin
+  log.Add(line);
+end;
+
+procedure TDump.Dbp(const fs: string; const args: array of const);
+begin
+  log.Add(Format(fs, args));
 end;
 
 {$EndRegion}
@@ -233,14 +252,14 @@ procedure TEarTri.Build(const filename: string);
 begin
   Init(filename);
   dump.PrintAll(vertices);
-  writeln(Format('Area of polygon = %g', [0.5 * AreaPoly2]));
+  dump.Dbp('Area of polygon = %g', [0.5 * AreaPoly2]);
   Triangulate;
-  writeln;
+  dump.Dbp;
 end;
-
 
 procedure TEarTri.Init(const filename: string);
 begin
+  dump.Init(filename);
   vertices := nil;
   nvertices := ReadVertices(filename);
 end;
@@ -323,14 +342,14 @@ var
 begin
   // Initialize v1.ear for all vertices.
   v1 := vertices;
-  writeln('newpath');
+  dump.Dbp('newpath');
   repeat
     v2 := v1.next;
     v0 := v1.prev;
     v1.ear := Diagonal(v0, v2);
     v1 := v1.next;
    until v1 = vertices;
-   writeln('closepath stroke'#13#10);
+   dump.Dbp('closepath stroke');
 end;
 
 procedure TEarTri.Triangulate;
@@ -340,8 +359,8 @@ var
   earfound: Boolean; // for debugging and error detection only.
 begin
   n := nvertices;
-  EarInit();
-  writeln(#13#10'newpath');
+  EarInit;
+  dump.Dbp('newpath');
   // Each step of outer loop removes one ear.
   while n > 3 do
   begin
@@ -371,12 +390,10 @@ begin
     until v2 = vertices;
     if not earfound then
     begin
-      writeln('Error in Triangulate: No ear found.');
       dump.PrintPoly(vertices);
-      Halt;
+      raise Exception.Create('Error in Triangulate: No ear found.');
     end;
   end;
-  writeln('closepath stroke');
 end;
 
 function TEarTri.InCone(a, b: tVertex): Boolean;
@@ -424,18 +441,14 @@ begin
       Inc(vnum);
     end;
     if vnum < 3 then
-    begin
-      err := Format('Error in ReadVertices: nvertices=%d<3\n', [vnum]);
-      writeln(err);
-      raise Exception.Create(err);
-    end;
+      raise Exception.CreateFmt('ReadVertices: nvertices=%d < 3', [vnum]);
   finally
     str.Free;
   end;
   Result := vnum;
 end;
 
-procedure TEarTri.Add(head, p: tVertex);
+procedure TEarTri.Add(var head: tVertex; p: tVertex);
 begin
   if head <> nil then
   begin
