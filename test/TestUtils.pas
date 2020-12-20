@@ -22,7 +22,8 @@ interface
 
 uses
   System.Classes, System.Math, TestFramework,
-  Oz.Solid.Types, Oz.Solid.Svg, Oz.Solid.VectorInt, Oz.Solid.Boolean;
+  Oz.Solid.Types, Oz.Solid.Svg, Oz.Solid.VectorInt, Oz.Solid.Boolean,
+  Oz.Solid.EarTri;
 
 {$Region 'Test2dPoint'}
 
@@ -60,6 +61,7 @@ type
 type
   TestEarTri = class(TTestCase)
   public
+    EarTri: TEarTri;
     procedure SetUp; override;
     procedure TearDown; override;
   published
@@ -286,8 +288,11 @@ begin
 end;
 
 procedure TestEarTri.Test;
+var
+  filename: string;
 begin
-
+  filename := 'test.dat';
+  EarTri.Build(filename);
 end;
 
 {$EndRegion}
@@ -374,6 +379,6 @@ end;
 initialization
   RegisterTest(Test2dPoint.Suite);
   RegisterTest(TestSvg.Suite);
-  RegisterTest(TestBool.Suite);
+  RegisterTest(TestEarTri.Suite);
 
 end.

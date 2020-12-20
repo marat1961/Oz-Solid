@@ -38,115 +38,108 @@ type
     next, prev: tVertex;
   end;
 
-// Returns twice the signed area of the triangle determined by a, b, c.
-// The area is positive if a,b,c are oriented ccw, negative if cw,
-// and zero if the points are collinear.
-function Area2(a, b, c: t2i): Integer;
-
-// Returns True iff c is strictly to the left of the directed line
-// through a to b.
-function Left(a, b, c: t2i): Boolean;
-
-// Returns True iff ab properly intersects cd: they share
-// a point interior to both segments. The properness of the
-// intersection is ensured by using strict leftness.
-function IntersectProp(a, b, c, d: t2i): Boolean;
-
-function LeftOn(a, b, c: t2i): Boolean;
-
-function Collinear(a, b, c: t2i): Boolean;
-
-// Returns True iff point c lies on the closed segement ab.
-// First checks that c is collinear with a and b.
-function Between(a, b, c: t2i): Boolean;
-
-// Returns True iff segments ab and cd intersect, properly or improperly.
-function Intersect(a, b, c, d: t2i): Boolean;
-
-// Returns True iff (a, b) is a proper internal or external
-// diagonal of P, ignoring edges incident to a and b.
-function Diagonalie(a, b: tVertex): Boolean;
-
-// This function initializes the data structures, and calls
-// Triangulate2 to clip off the ears one by one.
-procedure EarInit;
-
-// Prints out n-3 diagonals (as pairs of integer indices)
-// which form a triangulation of P.
-procedure Triangulate;
-
-// Returns True iff the diagonal (a,b) is strictly internal to the
-// polygon in the neighborhood of the a endpoint.
-function InCone(a, b: tVertex): Boolean;
-
-// Returns True iff (a,b) is a proper internal diagonal.
-function Diagonal(a, b: tVertex): Boolean;
-
-// ReadVertices: Reads in the vertices, and links them into a circular
-// list with MakeNullVertex.  There is no need for the # of vertices to be
-// the first line: the function looks for EOF instead.
-procedure ReadVertices(const filename: string);
-
-// MakeNullVertex: Makes a vertex.
-function MakeNullVertex: tVertex;
-
-// For debugging; not currently invoked.
-procedure PrintPoly;
-
-// Print: Prints out the vertices.  Uses the vnum indices
-// corresponding to the order in which the vertices were input.
-// Output is in SVG format.
-procedure PrintVertices;
-
-procedure PrintDiagonal(a, b: tVertex);
-
-function AreaPoly2: Integer;
-function AreaSign(a, b, c: t2i): Integer;
-
-procedure main;
+  TEarTri = record
+  var
+    vertices: tVertex;  // 'Head' of circular list.
+    nvertices: Integer; // Total number of polygon vertices.
+  private
+    // Returns twice the signed area of the triangle determined by a, b, c.
+    // The area is positive if a, b, c are oriented ccw, negative if cw,
+    // and zero if the points are collinear.
+    function Area2(a, b, c: t2i): Integer;
+    // Returns True iff c is strictly to the left of the directed line
+    // through a to b.
+    function Left(a, b, c: t2i): Boolean;
+    // Returns True iff ab properly intersects cd: they share
+    // a point interior to both segments. The properness of the
+    // intersection is ensured by using strict leftness.
+    function IntersectProp(a, b, c, d: t2i): Boolean;
+    function LeftOn(a, b, c: t2i): Boolean;
+    function Collinear(a, b, c: t2i): Boolean;
+    // Returns True iff point c lies on the closed segement ab.
+    // First checks that c is collinear with a and b.
+    function Between(a, b, c: t2i): Boolean;
+    // Returns True iff segments ab and cd intersect, properly or improperly.
+    function Intersect(a, b, c, d: t2i): Boolean;
+    // Returns True iff (a, b) is a proper internal or external
+    // diagonal of P, ignoring edges incident to a and b.
+    function Diagonalie(a, b: tVertex): Boolean;
+    // This function initializes the data structures, and calls
+    // Triangulate2 to clip off the ears one by one.
+    procedure EarInit;
+    // Prints out n-3 diagonals (as pairs of integer indices)
+    // which form a triangulation of P.
+    procedure Triangulate;
+    // Returns True iff the diagonal (a,b) is strictly internal to the
+    // polygon in the neighborhood of the a endpoint.
+    function InCone(a, b: tVertex): Boolean;
+    // Returns True iff (a,b) is a proper internal diagonal.
+    function Diagonal(a, b: tVertex): Boolean;
+    // ReadVertices: Reads in the vertices, and links them into a circular
+    // list with MakeNullVertex. There is no need for the # of vertices
+    // to be the first line: the function looks for EOF instead.
+    procedure ReadVertices(const filename: string);
+    // MakeNullVertex: Makes a vertex.
+    function MakeNullVertex: tVertex;
+    // For debugging; not currently invoked.
+    procedure PrintPoly;
+    // Print: Prints out the vertices. Uses the vnum indices
+    // corresponding to the order in which the vertices were input.
+    // Output is in SVG format.
+    procedure PrintVertices;
+    procedure PrintDiagonal(a, b: tVertex);
+    function AreaPoly2: Integer;
+    function AreaSign(a, b, c: t2i): Integer;
+    procedure Add(head, p: tVertex);
+  public
+    procedure Build(const filename: string);
+  end;
 
 implementation
 
-var
-  // 'Head' of circular list.
-  vertices: tVertex = nil;
-  // Total number of polygon vertices.
-  nvertices: Integer = 0;
-
-function Area2( a, b, c: t2i ): Integer;
+procedure TEarTri.Build(const filename: string);
 begin
-  exit(
-    (b.x - a.x) * (c.y - a.y) -
-    (c.x - a.x) * (b.y - a.y));
+  vertices := nil;
+  nvertices := 0;
+  ReadVertices(filename);
+  PrintVertices;
+  writeln(Format('Area of polygon = %g', [0.5 * AreaPoly2]));
+  Triangulate;
+  writeln;
+end;
+
+function TEarTri.Area2(a, b, c: t2i): Integer;
+begin
+  Result := (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 end;
 
-function IntersectProp(a, b, c, d: t2i): Boolean;
+function TEarTri.IntersectProp(a, b, c, d: t2i): Boolean;
 begin
   // Eliminate improper cases.
   if (Collinear(a, b, c) or Collinear(a, b, d) or
       Collinear(c, d, a) or Collinear(c, d, b)) then
-    exit(False);
-  Result :=
-    (Left(a, b, c) xor Left(a, b, d)) and
-    (Left(c, d, a) xor Left(c, d, b));
+    Result := False
+  else
+    Result := (Left(a, b, c) xor Left(a, b, d)) and
+              (Left(c, d, a) xor Left(c, d, b));
 end;
 
-function Left(a, b, c: t2i): Boolean;
+function TEarTri.Left(a, b, c: t2i): Boolean;
 begin
   Result := AreaSign(a, b, c) > 0;
 end;
 
-function LeftOn(a, b, c: t2i): Boolean;
+function TEarTri.LeftOn(a, b, c: t2i): Boolean;
 begin
   Result := AreaSign(a, b, c) >= 0;
 end;
 
-function Collinear(a, b, c: t2i): Boolean;
+function TEarTri.Collinear(a, b, c: t2i): Boolean;
 begin
   Result := AreaSign(a, b, c) = 0;
 end;
 
-function Between(a, b, c: t2i): Boolean;
+function TEarTri.Between(a, b, c: t2i): Boolean;
 begin
    if not Collinear(a, b, c) then
      exit(False);
@@ -159,7 +152,7 @@ begin
                ((a.y >= c.y) and (c.y >= b.y));
 end;
 
-function Intersect(a, b, c, d: t2i): Boolean;
+function TEarTri.Intersect(a, b, c, d: t2i): Boolean;
 begin
    if IntersectProp( a, b, c, d ) then
      Result := True
@@ -170,7 +163,7 @@ begin
      Result := False;
 end;
 
-function Diagonalie(a, b: tVertex): Boolean;
+function TEarTri.Diagonalie(a, b: tVertex): Boolean;
 var
   c, c1: tVertex;
 begin
@@ -187,7 +180,7 @@ begin
    Result := True;
 end;
 
-procedure EarInit;
+procedure TEarTri.EarInit;
 var
   v0, v1, v2: tVertex;   // three consecutive vertices
 begin
@@ -203,7 +196,7 @@ begin
    writeln('closepath stroke'#13#10);
 end;
 
-procedure Triangulate;
+procedure TEarTri.Triangulate;
 var
   n: Integer; // number of vertices; shrinks to 3.
   v0, v1, v2, v3, v4: tVertex; // five consecutive vertices
@@ -249,7 +242,7 @@ begin
   writeln('closepath stroke');
 end;
 
-function InCone(a, b: tVertex): Boolean;
+function TEarTri.InCone(a, b: tVertex): Boolean;
 var
   a0, a1: tVertex ;  // a0, a, a1 are consecutive vertices.
 begin
@@ -263,12 +256,12 @@ begin
     Result := not (LeftOn(a.v, b.v, a1.v) and LeftOn(b.v, a.v, a0.v));
 end;
 
-function Diagonal(a, b: tVertex): Boolean;
+function TEarTri.Diagonal(a, b: tVertex): Boolean;
 begin
   Result := InCone(a, b) and InCone(b, a) and Diagonalie(a, b);
 end;
 
-procedure ReadVertices(const filename: string);
+procedure TEarTri.ReadVertices(const filename: string);
 var
   v: tVertex;
   i, x, y, vnum: Integer;
@@ -305,7 +298,7 @@ begin
   end;
 end;
 
-procedure Add(head, p: tVertex);
+procedure TEarTri.Add(head, p: tVertex);
 begin
   if head <> nil then
   begin
@@ -322,7 +315,7 @@ begin
   end;
 end;
 
-function MakeNullVertex: tVertex;
+function TEarTri.MakeNullVertex: tVertex;
 var
   v: tVertex;
 begin
@@ -331,7 +324,7 @@ begin
   Result := v;
 end;
 
-procedure PrintPoly;
+procedure TEarTri.PrintPoly;
 var
   v: tVertex;
 begin
@@ -343,7 +336,7 @@ begin
   until v = vertices;
 end;
 
-procedure PrintVertices;
+procedure TEarTri.PrintVertices;
 const
   filename = 'd:\test\verices.svg';
 var
@@ -411,14 +404,14 @@ begin
 //  writeln(Format('closepath stroke\n');
 end;
 
-procedure PrintDiagonal(a, b: tVertex);
+procedure TEarTri.PrintDiagonal(a, b: tVertex);
 begin
 //  writeln(Format('Diagonal: (%d,%d)\n', a.vnum, b.vnum );
 //  writeln(Format('%d\t%d\tmoveto\n', a.v.x, a.v.y );
 //  writeln(Format('%d\t%d\tlineto\n', b.v.x, b.v.y );
 end;
 
-function AreaPoly2: Integer;
+function TEarTri.AreaPoly2: Integer;
 var
   sum: Integer;
   p, v: tVertex;
@@ -433,7 +426,7 @@ begin
   Result := sum;
 end;
 
-function AreaSign(a, b, c: t2i): Integer;
+function TEarTri.AreaSign(a, b, c: t2i): Integer;
 var
   area2: Double;
 begin
@@ -445,18 +438,6 @@ begin
     Result := -1
   else
     Result := 0;
-end;
-
-procedure main;
-var
-  filename: string;
-begin
-  filename := 'test.dat';
-  ReadVertices(filename);
-  PrintVertices;
-  writeln(Format('Area of polygon = %g', [0.5 * AreaPoly2]));
-  Triangulate;
-  writeln;
 end;
 
 end.
