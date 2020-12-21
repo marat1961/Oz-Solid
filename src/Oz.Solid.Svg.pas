@@ -261,7 +261,8 @@ type
   TSbHelper = class helper for TStringBuilder
   public
     procedure StrAttr(const name, value: string);
-    procedure NumAttr(const name: string; value: Double; def: Double = 0.0);
+    procedure NumAttr(const name: string; value: Double); overload;
+    procedure NumAttr(const name: string; value: Double; def: Double); overload;
     procedure Num(value: Double);
     procedure Text(const value: string);
     procedure Point(const Pt: T2dPoint);
@@ -351,6 +352,11 @@ end;
 procedure TSbHelper.NumAttr(const name: string; value, def: Double);
 begin
   if SameValue(value, def) then exit;
+  NumAttr(name, value);
+end;
+
+procedure TSbHelper.NumAttr(const name: string; value: Double);
+begin
   AppendFormat(' %s="%s"', [name, FormatDouble(value, DF)]);
 end;
 
@@ -663,7 +669,7 @@ begin
   FMu := mu;
   FWidth := width;
   FHeight := height;
-  FShapes := TObjectList.Create;
+  FShapes := TObjectList.Create(True);
 end;
 
 destructor TsvgBuilder.Destroy;

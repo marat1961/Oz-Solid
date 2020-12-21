@@ -48,7 +48,7 @@ type
     filename: string;
     svg: TsvgBuilder;
     log: TStrings;
-    xmin, ymin, xmax, ymax, width, height: Integer;
+    xmin, ymin, xmax, ymax: Integer;
     // Compute bounding box for Encapsulated SVG.
     function CalcBounds(vertices: tVertex): Integer;
     // Uses the vnum indices corresponding to the order
@@ -59,8 +59,9 @@ type
   public
     procedure Init(const filename: string);
     procedure Free;
-    // Prints all
-    procedure PrintAll(vertices: tVertex);
+    procedure AddPolygon(vertices: tVertex);
+    // Prints svg and log
+    procedure PrintAll;
     // Add edge to svg
     procedure AddEdge(a, b: tVertex);
     // Prints out the vertices
@@ -136,7 +137,7 @@ implementation
 procedure TDump.Init(const filename: string);
 begin
   Self.filename := filename;
-  svg := TsvgBuilder.Create(100, 100);
+  svg := TsvgBuilder.Create(800, 600);
   log := TStringList.Create;
 end;
 
@@ -149,20 +150,22 @@ end;
 procedure TDump.AddEdge(a, b: tVertex);
 begin
   log.Add(Format('Diagonal: (%d, %d)', [a.vnum, b.vnum]));
-  svg.Line(a.v.x, a.v.y, b.v.x, b.v.y);
+  svg.Line(a.v.x, a.v.y, b.v.x, b.v.y).Stroke('green');
 end;
 
-procedure TDump.PrintAll(vertices: tVertex);
+procedure TDump.AddPolygon(vertices: tVertex);
 var
   nvertices: Integer;
 begin
   nvertices := CalcBounds(vertices);
   svg.ViewBox(xmin, ymin, xmax, ymax);
-  svg.Width := width;
-  svg.Width := height;
   AddVertices(vertices);
-  svg.SaveToFile(filename + '.svg');
   AddVerticesToLog(vertices, nvertices);
+end;
+
+procedure TDump.PrintAll;
+begin
+  svg.SaveToFile(filename + '.svg');
   log.SaveToFile(filename + '.txt');
 end;
 
@@ -186,8 +189,6 @@ begin
     v := v.next;
     Inc(Result);
   until v = vertices;
-  width := xmax - xmin;
-  height := ymax - ymin;
 end;
 
 procedure TDump.AddVertices(vertices: tVertex);
@@ -226,7 +227,7 @@ begin
   Dbp('Polygon circular list:');
   v := vertices;
   repeat
-    Dbp(' vnum=%5d:'#9'tear=%d', [v.vnum, v.ear]);
+    Dbp('vnum=%d v=(%d, %d) ear=%d', [v.vnum, v.v.x, v.v.y, Ord(v.ear)]);
     v := v.next;
   until v = vertices;
 end;
@@ -253,9 +254,10 @@ end;
 procedure TEarTri.Build(const filename: string);
 begin
   Init(filename);
-  dump.PrintAll(vertices);
-  dump.Dbp('Area of polygon = %g', [0.5 * AreaPoly2]);
+  dump.AddPolygon(vertices);
   Triangulate;
+  dump.PrintAll;
+  dump.Dbp('Area of polygon = %g', [0.5 * AreaPoly2]);
   dump.Dbp;
 end;
 
@@ -350,8 +352,8 @@ begin
     v0 := v1.prev;
     v1.ear := Diagonal(v0, v2);
     v1 := v1.next;
-   until v1 = vertices;
-   dump.Dbp('closepath stroke');
+  until v1 = vertices;
+  dump.Dbp('closepath stroke');
 end;
 
 procedure TEarTri.Triangulate;
@@ -422,7 +424,7 @@ var
   v: tVertex;
   i, x, y, vnum: Integer;
   str: TStrings;
-  line, err: string;
+  line: string;
   sa: TArray<string>;
 begin
   vnum := 0;
