@@ -87,16 +87,23 @@ type
     // Returns twice the signed area of the triangle determined by a, b, c.
     // The area is positive if a, b, c are oriented ccw, negative if cw,
     // and zero if the points are collinear.
-    function Area2(a, b, c: t2i): Integer;
+    function Area2(const a, b, c: t2i): Integer;
+    // Sign of area
+    function AreaSign(a, b, c: t2i): Integer;
+    // Area of polygon
+    function AreaPoly2: Integer;
     // Returns True iff c is strictly to the left of the directed line
     // through a to b.
-    function Left(a, b, c: t2i): Boolean;
+    function Left(const a, b, c: t2i): Boolean;
+    // Returns True iff c is to the left or on of the directed line
+    // through a to b.
+    function LeftOn(a, b, c: t2i): Boolean;
+    // Returns True iff a, b, c lie on a straight line
+    function Collinear(a, b, c: t2i): Boolean;
     // Returns True iff ab properly intersects cd: they share
     // a point interior to both segments. The properness of the
     // intersection is ensured by using strict leftness.
-    function IntersectProp(a, b, c, d: t2i): Boolean;
-    function LeftOn(a, b, c: t2i): Boolean;
-    function Collinear(a, b, c: t2i): Boolean;
+    function IntersectProp(const a, b, c, d: t2i): Boolean;
     // Returns True iff point c lies on the closed segement ab.
     // First checks that c is collinear with a and b.
     function Between(a, b, c: t2i): Boolean;
@@ -111,10 +118,10 @@ type
     // Prints out n-3 diagonals (as pairs of integer indices)
     // which form a triangulation of P.
     procedure Triangulate;
-    // Returns True iff the diagonal (a,b) is strictly internal to the
+    // Returns True iff the diagonal (a, b) is strictly internal to the
     // polygon in the neighborhood of the a endpoint.
     function InCone(a, b: tVertex): Boolean;
-    // Returns True iff (a,b) is a proper internal diagonal.
+    // Returns True iff (a, b) is a proper internal diagonal.
     function Diagonal(a, b: tVertex): Boolean;
     // Reads in the vertices, and links them into a circular
     // list with MakeNullVertex. There is no need for the # of vertices
@@ -122,8 +129,6 @@ type
     function ReadVertices(const filename: string): Integer;
     // MakeNullVertex: Makes a vertex.
     function MakeNullVertex: tVertex;
-    function AreaPoly2: Integer;
-    function AreaSign(a, b, c: t2i): Integer;
     procedure Add(var head: tVertex; p: tVertex);
     procedure Init(const filename: string);
   end;
@@ -268,23 +273,12 @@ begin
   nvertices := ReadVertices(filename);
 end;
 
-function TEarTri.Area2(a, b, c: t2i): Integer;
+function TEarTri.Area2(const a, b, c: t2i): Integer;
 begin
   Result := (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 end;
 
-function TEarTri.IntersectProp(a, b, c, d: t2i): Boolean;
-begin
-  // Eliminate improper cases.
-  if (Collinear(a, b, c) or Collinear(a, b, d) or
-      Collinear(c, d, a) or Collinear(c, d, b)) then
-    Result := False
-  else
-    Result := (Left(a, b, c) xor Left(a, b, d)) and
-              (Left(c, d, a) xor Left(c, d, b));
-end;
-
-function TEarTri.Left(a, b, c: t2i): Boolean;
+function TEarTri.Left(const a, b, c: t2i): Boolean;
 begin
   Result := AreaSign(a, b, c) > 0;
 end;
@@ -297,6 +291,17 @@ end;
 function TEarTri.Collinear(a, b, c: t2i): Boolean;
 begin
   Result := AreaSign(a, b, c) = 0;
+end;
+
+function TEarTri.IntersectProp(const a, b, c, d: t2i): Boolean;
+begin
+  // Eliminate improper cases.
+  if (Collinear(a, b, c) or Collinear(a, b, d) or
+      Collinear(c, d, a) or Collinear(c, d, b)) then
+    Result := False
+  else
+    Result := (Left(a, b, c) xor Left(a, b, d)) and
+              (Left(c, d, a) xor Left(c, d, b));
 end;
 
 function TEarTri.Between(a, b, c: t2i): Boolean;
@@ -314,7 +319,7 @@ end;
 
 function TEarTri.Intersect(a, b, c, d: t2i): Boolean;
 begin
-   if IntersectProp( a, b, c, d ) then
+   if IntersectProp(a, b, c, d) then
      Result := True
    else if Between(a, b, c) or Between(a, b, d) or Between(c, d, a)
         or Between(c, d, b) then
