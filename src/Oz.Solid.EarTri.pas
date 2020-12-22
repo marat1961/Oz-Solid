@@ -74,55 +74,60 @@ type
 
 {$EndRegion}
 
+{$Region 'T2iFn'}
+
+  T2iFn = record
+    // Returns twice the signed area of the triangle determined by a, b, c.
+    // The area is positive if a, b, c are oriented ccw, negative if cw,
+    // and zero if the points are collinear.
+    class function Area2(const a, b, c: t2i): Integer; static;
+    // Sign of area
+    class function AreaSign(a, b, c: t2i): Integer; static;
+    // Returns True iff c is strictly to the left of the directed line
+    // through a to b.
+    class function Left(const a, b, c: t2i): Boolean; static;
+    // Returns True iff c is to the left or on of the directed line
+    // through a to b.
+    class function LeftOn(const a, b, c: t2i): Boolean; static;
+    // Returns True iff a, b, c lie on a straight line
+    class function Collinear(const a, b, c: t2i): Boolean; static;
+    // Returns True iff ab properly intersects cd: they share
+    // a point interior to both segments. The properness of the
+    // intersection is ensured by using strict leftness.
+    class function IntersectProp(const a, b, c, d: t2i): Boolean; static;
+    // Returns True iff point c lies on the closed segement ab.
+    // First checks that c is collinear with a and b.
+    class function Between(const a, b, c: t2i): Boolean; static;
+    // Returns True iff segments ab and cd intersect, properly or improperly.
+    class function Intersect(const a, b, c, d: t2i): Boolean; static;
+  end;
+
+{$EndRegion}
+
 {$Region 'TEarTri'}
 
   TEarTri = record
-  private
+  var
     dump: TDump;
     vertices: tVertex;  // 'Head' of circular list.
     nvertices: Integer; // Total number of polygon vertices.
   public
     procedure Build(const filename: string);
-  private
-    // Returns twice the signed area of the triangle determined by a, b, c.
-    // The area is positive if a, b, c are oriented ccw, negative if cw,
-    // and zero if the points are collinear.
-    function Area2(const a, b, c: t2i): Integer;
-    // Sign of area
-    function AreaSign(a, b, c: t2i): Integer;
-    // Area of polygon
-    function AreaPoly2: Integer;
-    // Returns True iff c is strictly to the left of the directed line
-    // through a to b.
-    function Left(const a, b, c: t2i): Boolean;
-    // Returns True iff c is to the left or on of the directed line
-    // through a to b.
-    function LeftOn(a, b, c: t2i): Boolean;
-    // Returns True iff a, b, c lie on a straight line
-    function Collinear(a, b, c: t2i): Boolean;
-    // Returns True iff ab properly intersects cd: they share
-    // a point interior to both segments. The properness of the
-    // intersection is ensured by using strict leftness.
-    function IntersectProp(const a, b, c, d: t2i): Boolean;
-    // Returns True iff point c lies on the closed segement ab.
-    // First checks that c is collinear with a and b.
-    function Between(a, b, c: t2i): Boolean;
-    // Returns True iff segments ab and cd intersect, properly or improperly.
-    function Intersect(a, b, c, d: t2i): Boolean;
+    procedure Init(const filename: string);
+    // Prints out n-3 diagonals (as pairs of integer indices)
+    // which form a triangulation of P.
+    procedure Triangulate;
+    // Returns True iff (a, b) is a proper internal diagonal.
+    function Diagonal(a, b: tVertex): Boolean;
+    // Returns True iff the diagonal (a, b) is strictly internal to the
+    // polygon in the neighborhood of the a endpoint.
+    function InCone(a, b: tVertex): Boolean;
     // Returns True iff (a, b) is a proper internal or external
     // diagonal of P, ignoring edges incident to a and b.
     function Diagonalie(a, b: tVertex): Boolean;
     // This function initializes the data structures, and calls
     // Triangulate2 to clip off the ears one by one.
     procedure EarInit;
-    // Prints out n-3 diagonals (as pairs of integer indices)
-    // which form a triangulation of P.
-    procedure Triangulate;
-    // Returns True iff the diagonal (a, b) is strictly internal to the
-    // polygon in the neighborhood of the a endpoint.
-    function InCone(a, b: tVertex): Boolean;
-    // Returns True iff (a, b) is a proper internal diagonal.
-    function Diagonal(a, b: tVertex): Boolean;
     // Reads in the vertices, and links them into a circular
     // list with MakeNullVertex. There is no need for the # of vertices
     // to be the first line: the function looks for EOF instead.
@@ -130,7 +135,8 @@ type
     // MakeNullVertex: Makes a vertex.
     function MakeNullVertex: tVertex;
     procedure Add(var head: tVertex; p: tVertex);
-    procedure Init(const filename: string);
+    // Area of polygon
+    function AreaPoly2: Integer;
   end;
 
 {$EndRegion}
@@ -254,6 +260,79 @@ end;
 
 {$EndRegion}
 
+{$Region 'T2iFn'}
+
+class function T2iFn.Area2(const a, b, c: t2i): Integer;
+begin
+  Result := (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+end;
+
+class function T2iFn.AreaSign(a, b, c: t2i): Integer;
+var
+  area2: Double;
+begin
+  area2 := (b.x - a.x) * Double(c.y - a.y) - (c.x - a.x) * Double(b.x - a.x);
+  // The area should be an integer.
+  if area2 > 0.5 then
+    Result := 1
+  else if area2 < -0.5 then
+    Result := -1
+  else
+    Result := 0;
+end;
+
+class function T2iFn.Left(const a, b, c: t2i): Boolean;
+begin
+  Result := AreaSign(a, b, c) > 0;
+end;
+
+class function T2iFn.LeftOn(const a, b, c: t2i): Boolean;
+begin
+  Result := AreaSign(a, b, c) >= 0;
+end;
+
+class function T2iFn.Collinear(const a, b, c: t2i): Boolean;
+begin
+  Result := AreaSign(a, b, c) = 0;
+end;
+
+class function T2iFn.IntersectProp(const a, b, c, d: t2i): Boolean;
+begin
+  // Eliminate improper cases.
+  if (Collinear(a, b, c) or Collinear(a, b, d) or
+      Collinear(c, d, a) or Collinear(c, d, b)) then
+    Result := False
+  else
+    Result := (Left(a, b, c) xor Left(a, b, d)) and
+              (Left(c, d, a) xor Left(c, d, b));
+end;
+
+class function T2iFn.Between(const a, b, c: t2i): Boolean;
+begin
+   if not Collinear(a, b, c) then
+     exit(False);
+   // If ab not vertical, check betweenness on x; else on y.
+   if a.x <> b.x then
+     Result := ((a.x <= c.x) and (c.x <= b.x)) or
+               ((a.x >= c.x) and (c.x >= b.x))
+   else
+     Result := ((a.y <= c.y) and (c.y <= b.y)) or
+               ((a.y >= c.y) and (c.y >= b.y));
+end;
+
+class function T2iFn.Intersect(const a, b, c, d: t2i): Boolean;
+begin
+   if IntersectProp(a, b, c, d) then
+     Result := True
+   else if Between(a, b, c) or Between(a, b, d) or Between(c, d, a)
+        or Between(c, d, b) then
+     Result := True
+   else
+     Result := False;
+end;
+
+{$EndRegion}
+
 {$Region 'TEarTri'}
 
 procedure TEarTri.Build(const filename: string);
@@ -273,61 +352,6 @@ begin
   nvertices := ReadVertices(filename);
 end;
 
-function TEarTri.Area2(const a, b, c: t2i): Integer;
-begin
-  Result := (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-end;
-
-function TEarTri.Left(const a, b, c: t2i): Boolean;
-begin
-  Result := AreaSign(a, b, c) > 0;
-end;
-
-function TEarTri.LeftOn(a, b, c: t2i): Boolean;
-begin
-  Result := AreaSign(a, b, c) >= 0;
-end;
-
-function TEarTri.Collinear(a, b, c: t2i): Boolean;
-begin
-  Result := AreaSign(a, b, c) = 0;
-end;
-
-function TEarTri.IntersectProp(const a, b, c, d: t2i): Boolean;
-begin
-  // Eliminate improper cases.
-  if (Collinear(a, b, c) or Collinear(a, b, d) or
-      Collinear(c, d, a) or Collinear(c, d, b)) then
-    Result := False
-  else
-    Result := (Left(a, b, c) xor Left(a, b, d)) and
-              (Left(c, d, a) xor Left(c, d, b));
-end;
-
-function TEarTri.Between(a, b, c: t2i): Boolean;
-begin
-   if not Collinear(a, b, c) then
-     exit(False);
-   // If ab not vertical, check betweenness on x; else on y.
-   if a.x <> b.x then
-     Result := ((a.x <= c.x) and (c.x <= b.x)) or
-               ((a.x >= c.x) and (c.x >= b.x))
-   else
-     Result := ((a.y <= c.y) and (c.y <= b.y)) or
-               ((a.y >= c.y) and (c.y >= b.y));
-end;
-
-function TEarTri.Intersect(a, b, c, d: t2i): Boolean;
-begin
-   if IntersectProp(a, b, c, d) then
-     Result := True
-   else if Between(a, b, c) or Between(a, b, d) or Between(c, d, a)
-        or Between(c, d, b) then
-     Result := True
-   else
-     Result := False;
-end;
-
 function TEarTri.Diagonalie(a, b: tVertex): Boolean;
 var
   c, c1: tVertex;
@@ -338,7 +362,7 @@ begin
     c1 := c.next;
     // Skip edges incident to a or b
     if (c <> a) and (c1 <> a) and (c <> b) and (c1 <> b) and
-       Intersect(a.v, b.v, c.v, c1.v) then
+       T2iFn.Intersect(a.v, b.v, c.v, c1.v) then
       exit(False);
     c := c.next;
    until c = vertices;
@@ -412,11 +436,13 @@ begin
   a1 := a.next;
   a0 := a.prev;
   // If a is a convex vertex ...
-  if LeftOn(a.v, a1.v, a0.v) then
-    Result := Left(a.v, b.v, a0.v) and Left(b.v, a.v, a1.v)
+  if T2iFn.LeftOn(a.v, a1.v, a0.v) then
+    Result := T2iFn.Left(a.v, b.v, a0.v) and
+              T2iFn.Left(b.v, a.v, a1.v)
   else
     // Else a is reflex:
-    Result := not (LeftOn(a.v, b.v, a1.v) and LeftOn(b.v, a.v, a0.v));
+    Result := not (T2iFn.LeftOn(a.v, b.v, a1.v) and
+                   T2iFn.LeftOn(b.v, a.v, a0.v));
 end;
 
 function TEarTri.Diagonal(a, b: tVertex): Boolean;
@@ -492,24 +518,10 @@ begin
   p := vertices; // Fixed.
   v := p.next;   // Moving.
   repeat
-    sum := sum + Area2(p.v, v.v, v.next.v);
+    sum := sum + T2iFn.Area2(p.v, v.v, v.next.v);
     v := v.next;
   until v = vertices;
   Result := sum;
-end;
-
-function TEarTri.AreaSign(a, b, c: t2i): Integer;
-var
-  area2: Double;
-begin
-  area2 := (b.x - a.x) * Double(c.y - a.y) - (c.x - a.x) * Double(b.x - a.x);
-  // The area should be an integer.
-  if area2 > 0.5 then
-    Result := 1
-  else if area2 < -0.5 then
-    Result := -1
-  else
-    Result := 0;
 end;
 
 {$EndRegion}

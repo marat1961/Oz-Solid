@@ -62,10 +62,15 @@ type
   TestEarTri = class(TTestCase)
   public
     EarTri: TEarTri;
+    filename: string;
     procedure SetUp; override;
     procedure TearDown; override;
   published
-    procedure Test;
+    procedure TestTri;
+    procedure TestSq;
+    procedure TestSnake;
+    procedure Test18;
+    procedure TestDiagonal;
   end;
 
 {$EndRegion}
@@ -287,18 +292,41 @@ begin
   inherited;
 end;
 
-procedure TestEarTri.Test;
-var
-  filename: string;
+procedure TestEarTri.TestTri;
 begin
   filename := '..\..\..\data\i_tri';
   EarTri.Build(filename);
+end;
+
+procedure TestEarTri.TestSq;
+begin
   filename := '..\..\..\data\i_sq';
   EarTri.Build(filename);
+end;
+
+procedure TestEarTri.TestSnake;
+begin
   filename := '..\..\..\data\i_snake';
   EarTri.Build(filename);
+end;
+
+procedure TestEarTri.Test18;
+begin
   filename := '..\..\..\data\i_18';
   EarTri.Build(filename);
+end;
+
+procedure TestEarTri.TestDiagonal;
+var
+  v0, v1, v2: tVertex;
+begin
+  filename := '..\..\..\data\t1';
+  EarTri.Init(filename);
+  EarTri.dump.AddPolygon(EarTri.vertices);
+  v1 := EarTri.vertices;
+  v2 := v1.next;
+  v0 := v1.prev;
+  v1.ear := EarTri.Diagonal(v0, v2);
 end;
 
 {$EndRegion}
