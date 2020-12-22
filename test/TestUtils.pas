@@ -70,6 +70,7 @@ type
     procedure TestSq;
     procedure TestSnake;
     procedure Test18;
+    procedure Test5;
     procedure TestDiagonal;
   end;
 
@@ -289,6 +290,7 @@ end;
 
 procedure TestEarTri.TearDown;
 begin
+  EarTri.Free;
   inherited;
 end;
 
@@ -316,6 +318,12 @@ begin
   EarTri.Build(filename);
 end;
 
+procedure TestEarTri.Test5;
+begin
+  filename := '..\..\..\data\i_5';
+  EarTri.Build(filename);
+end;
+
 procedure TestEarTri.TestDiagonal;
 var
   v0, v1, v2: tVertex;
@@ -327,6 +335,7 @@ begin
   v2 := v1.next;
   v0 := v1.prev;
   v1.ear := EarTri.Diagonal(v0, v2);
+  CheckTrue(v1.ear);
 end;
 
 {$EndRegion}
@@ -411,8 +420,8 @@ end;
 {$EndRegion}
 
 initialization
+  RegisterTest(TestEarTri.Suite);
   RegisterTest(Test2dPoint.Suite);
   RegisterTest(TestSvg.Suite);
-  RegisterTest(TestEarTri.Suite);
 
 end.

@@ -114,6 +114,7 @@ type
   public
     procedure Build(const filename: string);
     procedure Init(const filename: string);
+    procedure Free;
     // Prints out n-3 diagonals (as pairs of integer indices)
     // which form a triangulation of P.
     procedure Triangulate;
@@ -352,6 +353,11 @@ begin
   nvertices := ReadVertices(filename);
 end;
 
+procedure TEarTri.Free;
+begin
+   dump.Free;
+end;
+
 function TEarTri.Diagonalie(a, b: tVertex): Boolean;
 var
   c, c1: tVertex;
@@ -361,7 +367,8 @@ begin
   repeat
     c1 := c.next;
     // Skip edges incident to a or b
-    if (c <> a) and (c1 <> a) and (c <> b) and (c1 <> b) and
+    if (c <> a) and (c1 <> a) and
+       (c <> b) and (c1 <> b) and
        T2iFn.Intersect(a.v, b.v, c.v, c1.v) then
       exit(False);
     c := c.next;
@@ -446,8 +453,14 @@ begin
 end;
 
 function TEarTri.Diagonal(a, b: tVertex): Boolean;
+var
+  ab, ba, dg: Boolean;
 begin
-  Result := InCone(a, b) and InCone(b, a) and Diagonalie(a, b);
+  ab := InCone(a, b);
+  ba := InCone(b, a);
+  dg := Diagonalie(a, b);
+  Result := ab and ba and dg;
+//  Result := InCone(a, b) and InCone(b, a) and Diagonalie(a, b);
 end;
 
 function TEarTri.ReadVertices(const filename: string): Integer;
