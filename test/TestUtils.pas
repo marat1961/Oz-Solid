@@ -70,8 +70,6 @@ type
     procedure TestSq;
     procedure TestSnake;
     procedure Test18;
-    procedure Test5;
-    procedure TestDiagonal;
   end;
 
 {$EndRegion}
@@ -316,26 +314,6 @@ procedure TestEarTri.Test18;
 begin
   filename := '..\..\..\data\i_18';
   EarTri.Build(filename);
-end;
-
-procedure TestEarTri.Test5;
-begin
-  filename := '..\..\..\data\i_5';
-  EarTri.Build(filename);
-end;
-
-procedure TestEarTri.TestDiagonal;
-var
-  v0, v1, v2: tVertex;
-begin
-  filename := '..\..\..\data\t1';
-  EarTri.Init(filename);
-  EarTri.dump.AddPolygon(EarTri.vertices);
-  v1 := EarTri.vertices;
-  v2 := v1.next;
-  v0 := v1.prev;
-  v1.ear := EarTri.Diagonal(v0, v2);
-  CheckTrue(v1.ear);
 end;
 
 {$EndRegion}

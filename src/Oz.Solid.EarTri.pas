@@ -107,17 +107,10 @@ type
 {$Region 'TEarTri'}
 
   TEarTri = record
-  var
+  private
     dump: TDump;
     vertices: tVertex;  // 'Head' of circular list.
     nvertices: Integer; // Total number of polygon vertices.
-  public
-    procedure Build(const filename: string);
-    procedure Init(const filename: string);
-    procedure Free;
-    // Prints out n-3 diagonals (as pairs of integer indices)
-    // which form a triangulation of P.
-    procedure Triangulate;
     // Returns True iff (a, b) is a proper internal diagonal.
     function Diagonal(a, b: tVertex): Boolean;
     // Returns True iff the diagonal (a, b) is strictly internal to the
@@ -136,6 +129,13 @@ type
     // MakeNullVertex: Makes a vertex.
     function MakeNullVertex: tVertex;
     procedure Add(var head: tVertex; p: tVertex);
+  public
+    procedure Build(const filename: string);
+    procedure Init(const filename: string);
+    procedure Free;
+    // Prints out n-3 diagonals (as pairs of integer indices)
+    // which form a triangulation of P.
+    procedure Triangulate;
     // Area of polygon
     function AreaPoly2: Integer;
   end;
@@ -162,7 +162,7 @@ end;
 procedure TDump.AddEdge(a, b: tVertex);
 begin
   log.Add(Format('Diagonal: (%d, %d)', [a.vnum, b.vnum]));
-  svg.Line(a.v.x, a.v.y, b.v.x, b.v.y).Stroke('green');
+  svg.Line(a.v.x, a.v.y, b.v.x, b.v.y).Stroke('green').StrokeWidth(0.2);
 end;
 
 procedure TDump.AddPolygon(vertices: tVertex);
@@ -215,7 +215,7 @@ begin
     polygon.Point(v.v);
     v := v.next;
   until v = vertices;
-  polygon.Fill('none').Stroke('black');
+  polygon.Fill('none').Stroke('black').StrokeWidth(0.2);
 end;
 
 procedure TDump.AddVerticesToLog(vertices: tVertex; nvertices: Integer);
@@ -272,7 +272,8 @@ class function T2iFn.AreaSign(a, b, c: t2i): Integer;
 var
   area2: Double;
 begin
-  area2 := (b.x - a.x) * Double(c.y - a.y) - (c.x - a.x) * Double(b.x - a.x);
+  area2 := (b.x - a.x) * Double(c.y - a.y) -
+           (c.x - a.x) * Double(b.y - a.y);
   // The area should be an integer.
   if area2 > 0.5 then
     Result := 1
@@ -453,14 +454,8 @@ begin
 end;
 
 function TEarTri.Diagonal(a, b: tVertex): Boolean;
-var
-  ab, ba, dg: Boolean;
 begin
-  ab := InCone(a, b);
-  ba := InCone(b, a);
-  dg := Diagonalie(a, b);
-  Result := ab and ba and dg;
-//  Result := InCone(a, b) and InCone(b, a) and Diagonalie(a, b);
+  Result := InCone(a, b) and InCone(b, a) and Diagonalie(a, b);
 end;
 
 function TEarTri.ReadVertices(const filename: string): Integer;
