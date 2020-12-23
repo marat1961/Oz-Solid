@@ -41,9 +41,9 @@ type
 
 {$EndRegion}
 
-{$Region 'TDump'}
+{$Region 'TsvgIO'}
 
-  TDump = record
+  TsvgIO = record
   strict private
     filename: string;
     svg: TsvgBuilder;
@@ -108,7 +108,7 @@ type
 
   TEarTri = record
   private
-    dump: TDump;
+    io: TsvgIO;
     vertices: tVertex;  // 'Head' of circular list.
     nvertices: Integer; // Total number of polygon vertices.
     // Returns True iff (a, b) is a proper internal diagonal.
@@ -144,28 +144,28 @@ type
 
 implementation
 
-{$Region 'TDump'}
+{$Region 'TsvgIO'}
 
-procedure TDump.Init(const filename: string);
+procedure TsvgIO.Init(const filename: string);
 begin
   Self.filename := filename;
   svg := TsvgBuilder.Create(800, 600);
   log := TStringList.Create;
 end;
 
-procedure TDump.Free;
+procedure TsvgIO.Free;
 begin
   FreeAndNil(svg);
   FreeAndNil(log);
 end;
 
-procedure TDump.AddEdge(a, b: tVertex);
+procedure TsvgIO.AddEdge(a, b: tVertex);
 begin
   log.Add(Format('Diagonal: (%d, %d)', [a.vnum, b.vnum]));
   svg.Line(a.v.x, a.v.y, b.v.x, b.v.y).Stroke('green').StrokeWidth(0.2);
 end;
 
-procedure TDump.AddPolygon(vertices: tVertex);
+procedure TsvgIO.AddPolygon(vertices: tVertex);
 var
   nvertices: Integer;
 begin
@@ -175,13 +175,13 @@ begin
   AddVerticesToLog(vertices, nvertices);
 end;
 
-procedure TDump.PrintAll;
+procedure TsvgIO.PrintAll;
 begin
   svg.SaveToFile(filename + '.svg');
   log.SaveToFile(filename + '.txt');
 end;
 
-function TDump.CalcBounds(vertices: tVertex): Integer;
+function TsvgIO.CalcBounds(vertices: tVertex): Integer;
 var
   v: tVertex;
 begin
@@ -203,7 +203,7 @@ begin
   until v = vertices;
 end;
 
-procedure TDump.AddVertices(vertices: tVertex);
+procedure TsvgIO.AddVertices(vertices: tVertex);
 var
   polygon: TsvgPolygon;
   v: tVertex;
@@ -218,7 +218,7 @@ begin
   polygon.Fill('none').Stroke('black').StrokeWidth(0.2);
 end;
 
-procedure TDump.AddVerticesToLog(vertices: tVertex; nvertices: Integer);
+procedure TsvgIO.AddVerticesToLog(vertices: tVertex; nvertices: Integer);
 var
   v: tVertex;
 begin
@@ -232,7 +232,7 @@ begin
   until v = vertices;
 end;
 
-procedure TDump.PrintPoly(vertices: tVertex);
+procedure TsvgIO.PrintPoly(vertices: tVertex);
 var
   v: tVertex;
 begin
@@ -244,17 +244,17 @@ begin
   until v = vertices;
 end;
 
-procedure TDump.Dbp;
+procedure TsvgIO.Dbp;
 begin
   log.Add('');
 end;
 
-procedure TDump.Dbp(const line: string);
+procedure TsvgIO.Dbp(const line: string);
 begin
   log.Add(line);
 end;
 
-procedure TDump.Dbp(const fs: string; const args: array of const);
+procedure TsvgIO.Dbp(const fs: string; const args: array of const);
 begin
   log.Add(Format(fs, args));
 end;
@@ -340,23 +340,23 @@ end;
 procedure TEarTri.Build(const filename: string);
 begin
   Init(filename);
-  dump.AddPolygon(vertices);
+  io.AddPolygon(vertices);
   Triangulate;
-  dump.PrintAll;
-  dump.Dbp('Area of polygon = %g', [0.5 * AreaPoly2]);
-  dump.Dbp;
+  io.PrintAll;
+  io.Dbp('Area of polygon = %g', [0.5 * AreaPoly2]);
+  io.Dbp;
 end;
 
 procedure TEarTri.Init(const filename: string);
 begin
-  dump.Init(filename);
+  io.Init(filename);
   vertices := nil;
   nvertices := ReadVertices(filename);
 end;
 
 procedure TEarTri.Free;
 begin
-   dump.Free;
+   io.Free;
 end;
 
 function TEarTri.Diagonalie(a, b: tVertex): Boolean;
@@ -383,14 +383,14 @@ var
 begin
   // Initialize v1.ear for all vertices.
   v1 := vertices;
-  dump.Dbp('newpath');
+  io.Dbp('newpath');
   repeat
     v2 := v1.next;
     v0 := v1.prev;
     v1.ear := Diagonal(v0, v2);
     v1 := v1.next;
   until v1 = vertices;
-  dump.Dbp('closepath stroke');
+  io.Dbp('closepath stroke');
 end;
 
 procedure TEarTri.Triangulate;
@@ -401,7 +401,7 @@ var
 begin
   n := nvertices;
   EarInit;
-  dump.Dbp('newpath');
+  io.Dbp('newpath');
   // Each step of outer loop removes one ear.
   while n > 3 do
   begin
@@ -416,7 +416,7 @@ begin
         v3 := v2.next; v4 := v3.next;
         v1 := v2.prev; v0 := v1.prev;
         // (v1,v3) is a diagonal
-        dump.AddEdge(v1, v3);
+        io.AddEdge(v1, v3);
         // Update earity of diagonal endpoints
         v1.ear := Diagonal(v0, v3);
         v3.ear := Diagonal(v1, v4);
@@ -431,7 +431,7 @@ begin
     until v2 = vertices;
     if not earfound then
     begin
-      dump.PrintPoly(vertices);
+      io.PrintPoly(vertices);
       raise Exception.Create('Error in Triangulate: No ear found.');
     end;
   end;
