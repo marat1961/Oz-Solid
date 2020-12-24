@@ -22,7 +22,7 @@ interface
 {$Region 'Uses'}
 
 uses
-  System.Classes, System.SysUtils, Oz.Solid.VectorInt, Oz.Solid.Svg;
+  System.Classes, System.SysUtils, System.Math, Oz.Solid.VectorInt, Oz.Solid.Svg;
 
 {$EndRegion}
 
@@ -85,10 +85,11 @@ type
     svg: TsvgBuilder;
     log: TStrings;
     xmin, ymin, xmax, ymax: Integer;
-    check: Boolean;
     // Compute bounding box for Encapsulated SVG.
     function CalcBounds(vertices: tVertex): Integer;
   public
+    debug: Boolean;
+    check: Boolean;
     procedure Init(const filename: string);
     procedure Free;
     // Prints out the vertices and the faces. Uses the vnum indices
@@ -114,8 +115,6 @@ type
     vertices: tVertex;
     edges: tEdge;
     faces: tFace;
-    debug: Boolean;
-    log: TStrings;
     xmin, ymin, xmax, ymax: Integer;
     procedure Add(var head: tVertex; p: tVertex);
     procedure Delete(var head: tVertex; p: tVertex);
@@ -288,7 +287,7 @@ begin
     // Print face only if it is lower
     if f.lower then
     begin
-      log.Add(Format('vnums: %d  %d  %d',
+      Dbp(Format('vnums: %d  %d  %d',
         [f.vertex[0].vnum, f.vertex[1].vnum, f.vertex[2].vnum]));
       svg.Polygon
         .Point(f.vertex[0].v.x, f.vertex[0].v.y)
@@ -299,10 +298,10 @@ begin
   until f = faces;
 
   // prints a list of all faces
-  log.Add('List of all faces');
-  log.Add('v0 v1 v2 (vertex indices)');
+  Dbp('List of all faces');
+  Dbp('v0 v1 v2 (vertex indices)');
   repeat
-    log.Add(Format('%d %d %d',
+    Dbp(Format('%d %d %d',
       [f.vertex[0].vnum, f.vertex[1].vnum, f.vertex[2].vnum]));
     f := f.next;
   until f = faces;
@@ -313,7 +312,7 @@ begin
     Inc(Ec);
     e := e.next;
   until e = edges;
-  log.Add(Format('Edges: E = %d', [Ec]));
+  Dbp(Format('Edges: E = %d', [Ec]));
   // Edges not printed out (but easily added).
 
   check := True;
@@ -323,19 +322,19 @@ end;
 procedure TsvgIO.CheckEuler(V, E, F: Integer);
 begin
   if check then
-    log.Add(Format('Checks: V, E, F = %d %d %d:', [V, E, F]));
+    Dbp(Format('Checks: V, E, F = %d %d %d:', [V, E, F]));
   if (V - E + F) <> 2 then
-    log.Add('Checks: V - E + F <> 2')
+    Dbp('Checks: V - E + F <> 2')
   else if check then
-    log.Add('V - E + F = 2');
+    Dbp('V - E + F = 2');
   if F <> (2 * V - 4) then
-    log.Add(Format('Checks: F=%d <> 2 * V - 4=%d; V=%d', [F, 2 * V - 4, V]))
+    Dbp(Format('Checks: F=%d <> 2 * V - 4=%d; V=%d', [F, 2 * V - 4, V]))
   else if check then
-    log.Add('F = 2 * V - 4');
+    Dbp('F = 2 * V - 4');
   if 2 * E <> 3 * F then
-    log.Add(Format('Checks: 2E=%d <> 3F=%d; E=%d, F=%d', [2 * E, 3 * F, E, F]))
+    Dbp(Format('Checks: 2E=%d <> 3F=%d; E=%d, F=%d', [2 * E, 3 * F, E, F]))
   else if check then
-    log.Add('2 * E = 3 * F');
+    Dbp('2 * E = 3 * F');
 end;
 
 function TsvgIO.CalcBounds(vertices: tVertex): Integer;
@@ -362,17 +361,17 @@ end;
 
 procedure TsvgIO.Dbp;
 begin
-  log.Add('');
+  Log.Add('');
 end;
 
 procedure TsvgIO.Dbp(const line: string);
 begin
-  log.Add(line);
+  Log.Add(line);
 end;
 
 procedure TsvgIO.Dbp(const fs: string; const args: array of const);
 begin
-  log.Add(Format(fs, args));
+  Log.Add(Format(fs, args));
 end;
 
 {$EndRegion}
@@ -468,6 +467,94 @@ begin
   Result := vnum;
 end;
 
+procedure TDelaunayTri.SubVec(const a, b: T3i; var c: T3i);
+begin
+  c.x := a.x - b.x;
+  c.y := a.y - b.y;
+  c.z := a.z - b.z;
+end;
+
+procedure TDelaunayTri.DoubleTriangle;
+var
+  v0, v1, v2, v3, t: tVertex;
+  f0, f1: tFace;
+  e0, e1, e2, s: tEdge;
+  vol: Integer;
+begin
+  f1 := nil;
+  (* Find 3 non-Collinear points. *)
+  v0 := vertices;
+  while Collinear(v0, v0.next, v0.next.next) do
+  begin
+    v0 := v0.next;
+    if v0 = vertices then
+      raise Exception.Create('DoubleTriangle:  All points are Collinear!');
+  end;
+  v1 := v0.next;
+  v2 := v1.next;
+
+  // Mark the vertices as processed.
+  v0.mark := PROCESSED;
+  v1.mark := PROCESSED;
+  v2.mark := PROCESSED;
+
+  // Create the two 'twin' faces.
+  f0 := MakeFace( v0, v1, v2, f1 );
+  f1 := MakeFace( v2, v1, v0, f0 );
+
+  // Link adjacent face fields.
+  f0.edge[0].adjface[1] := f1;
+  f0.edge[1].adjface[1] := f1;
+  f0.edge[2].adjface[1] := f1;
+  f1.edge[0].adjface[1] := f0;
+  f1.edge[1].adjface[1] := f0;
+  f1.edge[2].adjface[1] := f0;
+
+  // Find a fourth, non-coplanar point to form tetrahedron.
+  v3 := v2.next;
+  vol := VolumeSign(f0, v3);
+  while IsZero(vol) do
+  begin
+    v3 := v3.next;
+    if v3 = v0 then
+      raise Exception.Create('DoubleTriangle:  All points are coplanar!');
+    vol := VolumeSign(f0, v3);
+  end;
+
+  // Insure that v3 will be the first added.
+  vertices := v3;
+  if io.debug then
+  begin
+    io.Dbp('DoubleTriangle: finished. Head repositioned at v3.');
+    PrintOut(vertices);
+  end;
+end;
+
+procedure TDelaunayTri.ConstructHull;
+var
+  v, vnext: tVertex ;
+  vol: Integer;
+  changed: Boolean;  // T if addition changes hull; not used.
+begin
+  v := vertices;
+  repeat
+    vnext := v.next;
+    if not v.mark then
+    begin
+      v.mark := PROCESSED;
+      changed := AddOne(v);
+      CleanUp;
+      if io.check then
+      begin
+        io.Dbp(Format('ConstructHull: After Add of %d & Cleanup:', [v.vnum]));
+        Checks;
+      end;
+      if io.debug then PrintOut(v);
+    end;
+    v := vnext;
+  until v = vertices;
+end;
+
 function TDelaunayTri.AddOne(p: tVertex): Boolean;
 begin
 //   tFace  f;
@@ -476,7 +563,7 @@ begin
 //   Boolean    vis = False;
 //
 //   if ( debug ) begin
-//      log.Add(stderr, 'AddOne: starting to add v%d.', p.vnum);
+//      io.Dbp(stderr, 'AddOne: starting to add v%d.', p.vnum);
 //      PrintOut( vertices );
 //   end;
 //
@@ -484,7 +571,7 @@ begin
 //   f = faces;
 //   repeat
 //      vol = VolumeSign( f, p );
-//      if (debug) log.Add(stderr,
+//      if (debug) io.Dbp(stderr,
 //         'faddr: %6x   paddr: %6x   Vol = %d', f,p,vol);
 //      if ( vol < 0 ) begin
 //   f.visible = VISIBLE;
@@ -681,35 +768,9 @@ begin
 //   end; while ( e <> edges );
 //
 //   if ( e <> edges )
-//      log.Add( stderr, 'Checks: edges are NOT consistent.');
+//      io.Dbp( stderr, 'Checks: edges are NOT consistent.');
 //   else
-//      log.Add( stderr, 'Checks: edges consistent.');
-end;
-
-procedure TDelaunayTri.ConstructHull;
-begin
-//   tVertex  v, vnext;
-//   Integer       vol;
-//   Boolean      changed;  (* T if addition changes hull; not used. *)
-//
-//   v = vertices;
-//   repeat
-//      vnext = v.next;
-//      if ( not v.mark ) begin
-//         v.mark = PROCESSED;
-//   changed = AddOne( v );
-//   CleanUp();
-//
-//   if ( check ) begin
-//      log.Add(stderr,'ConstructHull: After Add of %d & Cleanup:',
-//               v.vnum);
-//      Checks();
-//   end;
-//   if ( debug )
-//            PrintOut( v );
-//      end;
-//      v = vnext;
-//   until v = vertices;
+//      io.Dbp( stderr, 'Checks: edges consistent.');
 end;
 
 procedure TDelaunayTri.Convexity;
@@ -736,59 +797,9 @@ begin
 //   end; while ( f <> faces );
 //
 //   if ( f <> faces )
-//      log.Add( stderr, 'Checks: NOT convex.');
+//      io.Dbp( stderr, 'Checks: NOT convex.');
 //   else if ( check )
-//      log.Add( stderr, 'Checks: convex.');
-end;
-
-procedure TDelaunayTri.DoubleTriangle;
-begin
-//   tVertex  v0, v1, v2, v3, t;
-//   tFace    f0, f1 = nil;
-//   tEdge    e0, e1, e2, s;
-//   Integer      vol;
-//
-//
-//   (* Find 3 non-Collinear points. *)
-//   v0 = vertices;
-//   while ( Collinear( v0, v0.next, v0.next.next ) )
-//      if ( ( v0 = v0.next ) == vertices )
-//         Format('DoubleTriangle:  All points are Collinearnot '), exit(0);
-//   v1 = v0.next;
-//   v2 = v1.next;
-//
-//   (* Mark the vertices as processed. *)
-//   v0.mark = PROCESSED;
-//   v1.mark = PROCESSED;
-//   v2.mark = PROCESSED;
-//
-//   (* Create the two 'twin' faces. *)
-//   f0 = MakeFace( v0, v1, v2, f1 );
-//   f1 = MakeFace( v2, v1, v0, f0 );
-//
-//   (* Link adjacent face fields. *)
-//   f0.edge[0].adjface[1] = f1;
-//   f0.edge[1].adjface[1] = f1;
-//   f0.edge[2].adjface[1] = f1;
-//   f1.edge[0].adjface[1] = f0;
-//   f1.edge[1].adjface[1] = f0;
-//   f1.edge[2].adjface[1] = f0;
-//
-//   (* Find a fourth, non-coplanar point to form tetrahedron. *)
-//   v3 = v2.next;
-//   vol = VolumeSign( f0, v3 );
-//   while ( not vol )   begin
-//      if ( ( v3 = v3.next ) == v0 )
-//         Format('DoubleTriangle:  All points are coplanarnot '), exit(0);
-//      vol = VolumeSign( f0, v3 );
-//   end;
-//
-//   (* Insure that v3 will be the first added. *)
-//   vertices = v3;
-//   if ( debug ) begin
-//      log.Add(stderr, 'DoubleTriangle: finished. Head repositioned at v3.');
-//      PrintOut( vertices );
-//   end;
+//      io.Dbp( stderr, 'Checks: convex.');
 end;
 
 procedure TDelaunayTri.LowerFaces;
@@ -804,14 +815,14 @@ begin
     begin
       Inc(Flower);
       f.lower := True;
-      log.Add(Format('z=%10d; lower face indices: %d, %d, %d',
+      io.Dbp(Format('z=%10d; lower face indices: %d, %d, %d',
         [z, f.vertex[0].vnum, f.vertex[1].vnum, f.vertex[2].vnum]));
     end
     else
       f.lower := False;
     f := f.next;
    until f = faces;
-   log.Add(Format('A total of %d lower faces identified.', [Flower]));
+   io.Dbp(Format('A total of %d lower faces identified.', [Flower]));
 end;
 
 procedure TDelaunayTri.MakeCcw(f: tFace; e: tEdge; p: tVertex);
@@ -970,17 +981,17 @@ var
   i: Integer;
 begin
   temp := edges;
-  log.Add('Edge List');
+  io.Dbp('Edge List');
   if edges <> nil then
   repeat
-    log.Add(Format('  addr: %6x'#9, [edges]));
-    log.Add('adj: ');
+    io.Dbp(Format('  addr: %6x'#9, [edges]));
+    io.Dbp('adj: ');
     for i := 0 to 1 do
-      log.Add(Format('%6x', [edges.adjface[i]]));
-    log.Add('  endpts:');
+      io.Dbp(Format('%6x', [edges.adjface[i]]));
+    io.Dbp('  endpts:');
     for i := 0 to 1 do
-      log.Add(Format('%4d', [edges.endpts[i].vnum]));
-    log.Add(Format('  del:%3d', [edges.delete]));
+      io.Dbp(Format('%4d', [edges.endpts[i].vnum]));
+    io.Dbp(Format('  del:%3d', [edges.delete]));
     edges := edges.next;
   until edges = temp;
 end;
@@ -991,24 +1002,24 @@ var
   i: Integer;
 begin
   temp := faces;
-  log.Add('Face List');
+  io.Dbp('Face List');
   if faces <> nil then
   repeat
-    log.Add(Format('  addr: %6x'#9, [faces]));
-    log.Add('  edges:');
+    io.Dbp(Format('  addr: %6x'#9, [faces]));
+    io.Dbp('  edges:');
     for i := 0 to 2 do
-      log.Add(Format('%6x', [faces.edge[i]]));
-    log.Add('  vert:');
+      io.Dbp(Format('%6x', [faces.edge[i]]));
+    io.Dbp('  vert:');
     for i := 0 to 2 do
-      log.Add(Format('%4d', [faces.vertex[i].vnum]));
-    log.Add(Format('  vis: %d', [faces.visible]));
+      io.Dbp(Format('%4d', [faces.vertex[i].vnum]));
+    io.Dbp(Format('  vis: %d', [faces.visible]));
     faces := faces.next;
   until faces = temp;
 end;
 
 procedure TDelaunayTri.PrintOut(v: tVertex);
 begin
-  log.Add(Format('Head vertex %d = %6x :', [v.vnum, v]));
+  io.Dbp(Format('Head vertex %d = %6x :', [v.vnum, v]));
   PrintVertices;
   PrintEdges;
   PrintFaces;
@@ -1016,8 +1027,8 @@ end;
 
 procedure TDelaunayTri.PrintPoint(p: tVertex);
 begin
-  log.Add(Format(#9'%d', [p.v.x, p.v.y, p.v.z]));
-  log.Add('');
+  io.Dbp(Format(#9'%d', [p.v.x, p.v.y, p.v.z]));
+  io.Dbp('');
 end;
 
 procedure TDelaunayTri.PrintVertices;
@@ -1025,25 +1036,18 @@ var
   temp: tVertex;
   i: Integer;
 begin
-  log.Add('Vertex List');
+  io.Dbp('Vertex List');
   if vertices <> nil then
   repeat
-    log.Add(Format('  addr %6x\t', [vertices]));
-    log.Add(Format('  vnum %4d', [vertices.vnum]));
-    log.Add(Format('   (%6d, %6d, %6d)',
+    io.Dbp(Format('  addr %6x\t', [vertices]));
+    io.Dbp(Format('  vnum %4d', [vertices.vnum]));
+    io.Dbp(Format('   (%6d, %6d, %6d)',
       [vertices.v.x, vertices.v.y, vertices.v.z]));
-    log.Add(Format('   active:%3d', [vertices.onhull]));
-    log.Add(Format('   dup:%5x', [vertices.duplicate]));
-    log.Add(Format('   mark:%2d', [vertices.mark]));
+    io.Dbp(Format('   active:%3d', [vertices.onhull]));
+    io.Dbp(Format('   dup:%5x', [vertices.duplicate]));
+    io.Dbp(Format('   mark:%2d', [vertices.mark]));
     vertices := vertices.next;
   until vertices = temp;
-end;
-
-procedure TDelaunayTri.SubVec(const a, b: T3i; var c: T3i);
-begin
-  c.x := a.x - b.x;
-  c.y := a.y - b.y;
-  c.z := a.z - b.z;
 end;
 
 function TDelaunayTri.Volumei(f: tFace; p: tVertex): Integer;
@@ -1143,7 +1147,7 @@ begin
 //   + (ax-dx) * (bydy*czdz - bzdz*cydy);
 //
 //   if ( debug )
-//      log.Add(stderr,'Face=%6x; Vertex=%d: vol(Integer) = %d, vol(Double) = %lf',
+//      io.Dbp(stderr,'Face=%6x; Vertex=%d: vol(Integer) = %d, vol(Double) = %lf',
 //        f,p.vnum,voli,vol);
 //
 //   (* The volume should be an integer. *)
