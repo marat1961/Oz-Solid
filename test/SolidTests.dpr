@@ -15,7 +15,8 @@ uses
   Oz.Solid.Boolean in '..\src\Oz.Solid.Boolean.pas',
   Oz.Solid.VectorInt in '..\src\Oz.Solid.VectorInt.pas',
   Oz.Solid.EarTri in '..\src\Oz.Solid.EarTri.pas',
-  Oz.Solid.Svg in '..\src\Oz.Solid.Svg.pas';
+  Oz.Solid.Svg in '..\src\Oz.Solid.Svg.pas',
+  Oz.Solid.DelaunayTri in '..\src\Oz.Solid.DelaunayTri.pas';
 
 {$R *.RES}
 
