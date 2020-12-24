@@ -117,7 +117,7 @@ type
     faces: tFace;
     xmin, ymin, xmax, ymax: Integer;
     procedure Add(var head: tVertex; p: tVertex);
-    procedure Delete(var head: tVertex; p: tVertex);
+    procedure Delete(var head: tEdge; p: tEdge);
     // Volumed is the same as VolumeSign but computed with doubles.
     // For protection against overflow.
     function Volumed(f: tFace; p: tVertex): Double;
@@ -222,6 +222,15 @@ const
   VISIBLE = True;
   PROCESSED = True;
   SAFE = 1000000;    // Range of safe coord values
+
+procedure Swap(a, b: tEdge);
+var
+  temp: tEdge;
+begin
+  temp := a;
+  a := b;
+  b := temp;
+end;
 
 {$Region 'TsvgIO'}
 
@@ -404,7 +413,7 @@ begin
   end;
 end;
 
-procedure TDelaunayTri.Delete(var head: tVertex; p: tVertex);
+procedure TDelaunayTri.Delete(var head: tEdge; p: tEdge);
 begin
   if head = head.next then
     head := nil
@@ -754,34 +763,34 @@ begin
 end;
 
 procedure TDelaunayTri.MakeCcw(f: tFace; e: tEdge; p: tVertex);
+var
+  fv: tFace;  // The visible face adjacent to e
+  i: Integer; // Index of e.endpoint[0] in fv.
 begin
-//   tFace  fv;   (* The visible face adjacent to e *)
-//   Integer    i;    (* Index of e.endpoint[0] in fv. *)
-//   tEdge  s;  (* Temporary, for swapping *)
-//
-//   if  ( e.adjface[0].visible )
-//        fv = e.adjface[0];
-//   else fv = e.adjface[1];
-//
-//   (* Set vertex[0] & [1] of f to have the same orientation
-//      as do the corresponding vertices of fv. *)
-//   for ( i=0; fv.vertex[i] <> e.endpts[0]; ++i )
-//      ;
-//   (* Orient f the same as fv. *)
-//   if ( fv.vertex[ (i+1) % 3 ] <> e.endpts[1] ) begin
-//      f.vertex[0] = e.endpts[1];
-//      f.vertex[1] = e.endpts[0];
-//   end;
-//   else begin
-//      f.vertex[0] = e.endpts[0];
-//      f.vertex[1] = e.endpts[1];
-//      SWAP( s, f.edge[1], f.edge[2] );
-//   end;
-//   (* This swap is tricky. e is edge[0]. edge[1] is based on endpt[0],
-//      edge[2] on endpt[1].  So if e is oriented 'forwards,' we
-//      need to move edge[1] to follow [0], because it precedes. *)
-//
-//   f.vertex[2] = p;
+  if  e.adjface[0].visible then
+    fv := e.adjface[0]
+  else
+    fv := e.adjface[1];
+  // Set vertex[0] & [1] of f to have the same orientation
+  // as do the corresponding vertices of fv.
+  i := 0;
+  while fv.vertex[i] <> e.endpts[0] do Inc(i);
+  // Orient f the same as fv.
+  if fv.vertex[(i + 1) mod 3] <> e.endpts[1] then
+  begin
+    f.vertex[0] := e.endpts[1];
+    f.vertex[1] := e.endpts[0];
+  end
+  else
+  begin
+    f.vertex[0] := e.endpts[0];
+    f.vertex[1] := e.endpts[1];
+    Swap(f.edge[1], f.edge[2]);
+  end;
+  // This swap is tricky. e is edge[0]. edge[1] is based on endpt[0],
+  // edge[2] on endpt[1]. So if e is oriented 'forwards' we
+  // need to move edge[1] to follow [0], because it precedes.
+  f.vertex[2] := p;
 end;
 
 procedure TDelaunayTri.Checks;
@@ -813,37 +822,42 @@ begin
 end;
 
 procedure TDelaunayTri.CleanEdges;
+var
+  e: tEdge;  // Primary index into edge list.
+  t: tEdge;  // Temporary edge pointer.
 begin
-//   tEdge  e;  (* Primary index into edge list. *)
-//   tEdge  t;  (* Temporary edge pointer. *)
-//
-//   (* Integrate the newface's into the data structure. *)
-//   (* Check every edge. *)
-//   e = edges;
-//   repeat
-//      if ( e.newface ) begin
-//   if ( e.adjface[0].visible )
-//      e.adjface[0] = e.newface;
-//   else  e.adjface[1] = e.newface;
-//   e.newface = nil;
-//      end;
-//      e = e.next;
-//   until e <> edges );
-//
-//   (* Delete any edges marked for deletion. *)
-//   while ( edges and edges.delete ) begin
-//      e = edges;
-//      DELETE( edges, e );
-//   end;
-//   e = edges.next;
-//   repeat
-//      if ( e.delete ) begin
-//   t = e;
-//   e = e.next;
-//   DELETE( edges, t );
-//      end;
-//      else e = e.next;
-//   until e <> edges );
+  // Integrate the newface's into the data structure.
+  //Check every edge.
+  e := edges;
+  repeat
+    if e.newface <> nil then
+    begin
+      if e.adjface[0].visible then
+        e.adjface[0] := e.newface
+      else
+        e.adjface[1] := e.newface;
+      e.newface := nil;
+    end;
+    e := e.next;
+  until e = edges;
+
+  (* Delete any edges marked for deletion. *)
+  while (edges <> nil) and edges.delete do
+  begin
+    e := edges;
+    Delete(edges, e);
+  end;
+  e := edges.next;
+  repeat
+    if e.delete then
+    begin
+      t := e;
+      e := e.next;
+      Delete(edges, t);
+    end
+    else
+      e := e.next;
+  until e = edges;
 end;
 
 procedure TDelaunayTri.CleanFaces;
