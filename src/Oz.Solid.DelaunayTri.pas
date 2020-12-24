@@ -121,6 +121,7 @@ type
     // Volumed is the same as VolumeSign but computed with doubles.
     // For protection against overflow.
     function Volumed(f: tFace; p: tVertex): Double;
+    function Volumei(f: tFace; p: tVertex): Integer;
   public
     procedure Build(const filename: string);
     // MakeNullVertex: Makes a vertex, nulls out fields
@@ -154,7 +155,6 @@ type
     // is positive if the ccw normal to f points outside the tetrahedron.
     // The final fewer-multiplications form is due to Robert Fraczkiewicz.
     function VolumeSign(f: tFace; p: tVertex): Integer;
-    function Volumei(f: tFace; p: tVertex): Integer;
     // MakeConeFace makes a new face and two new edges between the
     // edge and the point that are passed to it. It exit(s a pointer to
     // the new face.
@@ -556,56 +556,237 @@ begin
 end;
 
 function TDelaunayTri.AddOne(p: tVertex): Boolean;
+var
+  f: tFace;
+  e, temp: tEdge;
+  vol: Integer;
+  vis: Boolean;
 begin
-//   tFace  f;
-//   tEdge  e;
-//   Integer     vol;
-//   Boolean    vis = False;
+  vis := False;
+  if io.debug then
+  begin
+    io.Dbp('AddOne: starting to add v%d.', [p.vnum]);
+    PrintOut(vertices);
+  end;
+
+  // Mark faces visible from p.
+  f := faces;
+  repeat
+    vol := VolumeSign(f, p);
+    if io.debug then
+      io.Dbp('faddr: %6x   paddr: %6x   Vol = %d', [f, p, vol]);
+    if vol < 0 then
+    begin
+      f.visible := VISIBLE;
+      vis := True;
+    end;
+    f := f.next;
+  until f = faces;
+
+  // If no faces are visible from p, then p is inside the hull.
+  if not vis then
+  begin
+    p.onhull := not ONHULL;
+    exit(False);
+  end;
+
+  // Mark edges in interior of visible region for deletion.
+  // Erect a newface based on each border edge.
+  e := edges;
+  repeat
+    temp := e.next;
+    if e.adjface[0].visible and e.adjface[1].visible then
+      // e interior: mark for deletion.
+      e.delete := REMOVED
+    else if e.adjface[0].visible or e.adjface[1].visible then
+      // e border: make a new face.
+      e.newface := MakeConeFace(e, p);
+    e := temp;
+  until e = edges;
+  Result := True;
+end;
+
+function TDelaunayTri.VolumeSign(f: tFace; p: tVertex): Integer;
+var
+  vol: Double;
+  voli: Integer;
+  ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz: Double;
+  bxdx, bydy, bzdz, cxdx, cydy, czdz: Double;
+begin
+  ax := f.vertex[0].v.x;
+  ay := f.vertex[0].v.y;
+  az := f.vertex[0].v.z;
+  bx := f.vertex[1].v.x;
+  by := f.vertex[1].v.y;
+  bz := f.vertex[1].v.z;
+  cx := f.vertex[2].v.x;
+  cy := f.vertex[2].v.y;
+  cz := f.vertex[2].v.z;
+  dx := p.v.x;
+  dy := p.v.y;
+  dz := p.v.z;
+
+  bxdx := bx - dx;
+  bydy := by - dy;
+  bzdz := bz - dz;
+  cxdx := cx - dx;
+  cydy := cy - dy;
+  czdz := cz - dz;
+  vol := (az - dz) * (bxdx * cydy - bydy * cxdx)
+       + (ay - dy) * (bzdz * cxdx - bxdx * czdz)
+       + (ax - dx) * (bydy * czdz - bzdz * cydy);
+  if io.debug then
+    io.Dbp('Face=%6x; Vertex=%d: vol(Integer) = %d, vol(Double) = %lf',
+      [f, p.vnum, voli, vol]);
+
+  // The volume should be an integer.
+  if vol > 0.5 then
+    Result := 1
+  else if vol < -0.5 then
+    Result := -1
+  else
+    Result := 0;
+end;
+
+function TDelaunayTri.Volumei(f: tFace; p: tVertex): Integer;
+var
+  i, vol: Integer;
+  ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz: Integer;
+  bxdx, bydy, bzdz, cxdx, cydy, czdz: Integer;
+  vold: Double;
+begin
+  ax := f.vertex[0].v.x;
+  ay := f.vertex[0].v.y;
+  az := f.vertex[0].v.z;
+  bx := f.vertex[1].v.x;
+  by := f.vertex[1].v.y;
+  bz := f.vertex[1].v.z;
+  cx := f.vertex[2].v.x;
+  cy := f.vertex[2].v.y;
+  cz := f.vertex[2].v.z;
+  dx := p.v.x;
+  dy := p.v.y;
+  dz := p.v.z;
+
+  bxdx := bx - dx;
+  bydy := by - dy;
+  bzdz := bz - dz;
+  cxdx := cx - dx;
+  cydy := cy - dy;
+  czdz := cz - dz;
+  vol := (az - dz) * (bxdx * cydy - bydy * cxdx)
+       + (ay - dy) * (bzdz * cxdx - bxdx * czdz)
+       + (ax - dx) * (bydy * czdz - bzdz * cydy);
+
+  Result := vol;
+end;
+
+function TDelaunayTri.Volumed(f: tFace; p: tVertex): Double;
+var
+  vol, ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz: Double;
+  bxdx, bydy, bzdz, cxdx, cydy, czdz: Double;
+begin
+  ax := f.vertex[0].v.x;
+  ay := f.vertex[0].v.y;
+  az := f.vertex[0].v.z;
+  bx := f.vertex[1].v.x;
+  by := f.vertex[1].v.y;
+  bz := f.vertex[1].v.z;
+  cx := f.vertex[2].v.x;
+  cy := f.vertex[2].v.y;
+  cz := f.vertex[2].v.z;
+  dx := p.v.x;
+  dy := p.v.y;
+  dz := p.v.z;
+
+  bxdx := bx - dx;
+  bydy := by - dy;
+  bzdz := bz - dz;
+  cxdx := cx - dx;
+  cydy := cy - dy;
+  czdz := cz - dz;
+  vol := (az - dz) * (bxdx * cydy - bydy * cxdx)
+       + (ay - dy) * (bzdz * cxdx - bxdx * czdz)
+       + (ax - dx) * (bydy * czdz - bzdz * cydy);
+
+  Result := vol;
+end;
+
+function TDelaunayTri.MakeConeFace(e: tEdge; p: tVertex): tFace;
+var
+  i, j: Integer;
+  new_edge: array [0..1] of tEdge;
+  new_face: tFace;
+begin
+  // Make two new edges (if don't already exist).
+  for i := 0 to 1 do
+  begin
+    new_edge[i] := e.endpts[i].duplicate;
+    // If the edge exists, copy it into new_edge.
+    if new_edge[i] = nil then
+    begin
+      // Otherwise (duplicate is nil), MakeNullEdge.
+      new_edge[i] := MakeNullEdge;
+      new_edge[i].endpts[0] := e.endpts[i];
+      new_edge[i].endpts[1] := p;
+      e.endpts[i].duplicate := new_edge[i];
+    end;
+  end;
+
+  // Make the new face.
+  new_face := MakeNullFace();
+  new_face.edge[0] := e;
+  new_face.edge[1] := new_edge[0];
+  new_face.edge[2] := new_edge[1];
+  MakeCcw(new_face, e, p);
+
+  // Set the adjacent face pointers.
+  for i := 0 to 1 do
+    for j := 0 to 1 do
+      // Only one nil link should be set to new_face.
+      if new_edge[i].adjface[j] = nil then
+      begin
+        new_edge[i].adjface[j] := new_face;
+        break;
+      end;
+
+  Result := new_face;
+end;
+
+procedure TDelaunayTri.MakeCcw(f: tFace; e: tEdge; p: tVertex);
+begin
+//   tFace  fv;   (* The visible face adjacent to e *)
+//   Integer    i;    (* Index of e.endpoint[0] in fv. *)
+//   tEdge  s;  (* Temporary, for swapping *)
 //
-//   if ( debug ) begin
-//      io.Dbp(stderr, 'AddOne: starting to add v%d.', p.vnum);
-//      PrintOut( vertices );
+//   if  ( e.adjface[0].visible )
+//        fv = e.adjface[0];
+//   else fv = e.adjface[1];
+//
+//   (* Set vertex[0] & [1] of f to have the same orientation
+//      as do the corresponding vertices of fv. *)
+//   for ( i=0; fv.vertex[i] <> e.endpts[0]; ++i )
+//      ;
+//   (* Orient f the same as fv. *)
+//   if ( fv.vertex[ (i+1) % 3 ] <> e.endpts[1] ) begin
+//      f.vertex[0] = e.endpts[1];
+//      f.vertex[1] = e.endpts[0];
 //   end;
-//
-//   (* Mark faces visible from p. *)
-//   f = faces;
-//   repeat
-//      vol = VolumeSign( f, p );
-//      if (debug) io.Dbp(stderr,
-//         'faddr: %6x   paddr: %6x   Vol = %d', f,p,vol);
-//      if ( vol < 0 ) begin
-//   f.visible = VISIBLE;
-//   vis = True;
-//      end;
-//      f = f.next;
-//   end; while ( f <> faces );
-//
-//   (* If no faces are visible from p, then p is inside the hull. *)
-//   if ( not vis ) begin
-//      p.onhull = not ONHULL;
-//      exit( False;
+//   else begin
+//      f.vertex[0] = e.endpts[0];
+//      f.vertex[1] = e.endpts[1];
+//      SWAP( s, f.edge[1], f.edge[2] );
 //   end;
+//   (* This swap is tricky. e is edge[0]. edge[1] is based on endpt[0],
+//      edge[2] on endpt[1].  So if e is oriented 'forwards,' we
+//      need to move edge[1] to follow [0], because it precedes. *)
 //
-//   (* Mark edges in interior of visible region for deletion.
-//      Erect a newface based on each border edge. *)
-//   e = edges;
-//   repeat
-//      tEdge temp;
-//      temp = e.next;
-//      if ( e.adjface[0].visible && e.adjface[1].visible )
-//   (* e interior: mark for deletion. *)
-//   e.delete = REMOVED;
-//      else if ( e.adjface[0].visible or e.adjface[1].visible )
-//   (* e border: make a new face. *)
-//   e.newface = MakeConeFace( e, p );
-//      e = temp;
-//   end; while ( e <> edges );
-//   exit( True;
+//   f.vertex[2] = p;
 end;
 
 procedure TDelaunayTri.Checks;
 var
-  v: tVertex  ;
+  v: tVertex;
   e: tEdge;
   f: tFace;
   Vc, Ec, Fc: Integer;
@@ -647,10 +828,10 @@ begin
 //   e.newface = nil;
 //      end;
 //      e = e.next;
-//   end; while ( e <> edges );
+//   until e <> edges );
 //
 //   (* Delete any edges marked for deletion. *)
-//   while ( edges && edges.delete ) begin
+//   while ( edges and edges.delete ) begin
 //      e = edges;
 //      DELETE( edges, e );
 //   end;
@@ -662,7 +843,7 @@ begin
 //   DELETE( edges, t );
 //      end;
 //      else e = e.next;
-//   end; while ( e <> edges );
+//   until e <> edges );
 end;
 
 procedure TDelaunayTri.CleanFaces;
@@ -671,7 +852,7 @@ begin
 //   tFace  t;  (* Temporary pointer, for deleting. *)
 //
 //
-//   while ( faces && faces.visible ) begin
+//   while ( faces and faces.visible ) begin
 //      f = faces;
 //      DELETE( faces, f );
 //   end;
@@ -683,7 +864,7 @@ begin
 //   DELETE( faces, t );
 //      end;
 //      else f = f.next;
-//   end; while ( f <> faces );
+//   until f <> faces );
 end;
 
 procedure TDelaunayTri.CleanUp;
@@ -707,13 +888,13 @@ begin
 //
 //   (* Delete all vertices that have been processed but
 //      are not on the hull. *)
-//   while ( vertices && vertices.mark && not vertices.onhull ) begin
+//   while ( vertices and vertices.mark and not vertices.onhull ) begin
 //      v = vertices;
 //      DELETE( vertices, v );
 //   end;
 //   v = vertices.next;
 //   repeat
-//      if ( v.mark && not v.onhull ) begin
+//      if ( v.mark and not v.onhull ) begin
 //   t = v;
 //   v = v.next;
 //   DELETE( vertices, t )
@@ -735,9 +916,9 @@ begin
 //   exit(
 //         ( c.v.z - a.v.z ) * ( b.v.y - a.v.y ) -
 //         ( b.v.z - a.v.z ) * ( c.v.y - a.v.y ) == 0
-//      && ( b.v.z - a.v.z ) * ( c.v.x - a.v.x ) -
+//      and ( b.v.z - a.v.z ) * ( c.v.x - a.v.x ) -
 //         ( b.v.x - a.v.x ) * ( c.v.z - a.v.z ) == 0
-//      && ( b.v.x - a.v.x ) * ( c.v.y - a.v.y ) -
+//      and ( b.v.x - a.v.x ) * ( c.v.y - a.v.y ) -
 //         ( b.v.y - a.v.y ) * ( c.v.x - a.v.x ) == 0  ;
 end;
 
@@ -765,7 +946,7 @@ begin
 //   break;
 //      e = e.next;
 //
-//   end; while ( e <> edges );
+//   until e <> edges );
 //
 //   if ( e <> edges )
 //      io.Dbp( stderr, 'Checks: edges are NOT consistent.');
@@ -794,7 +975,7 @@ begin
 //
 //      f = f.next;
 //
-//   end; while ( f <> faces );
+//   until f <> faces );
 //
 //   if ( f <> faces )
 //      io.Dbp( stderr, 'Checks: NOT convex.');
@@ -823,73 +1004,6 @@ begin
     f := f.next;
    until f = faces;
    io.Dbp(Format('A total of %d lower faces identified.', [Flower]));
-end;
-
-procedure TDelaunayTri.MakeCcw(f: tFace; e: tEdge; p: tVertex);
-begin
-//   tFace  fv;   (* The visible face adjacent to e *)
-//   Integer    i;    (* Index of e.endpoint[0] in fv. *)
-//   tEdge  s;  (* Temporary, for swapping *)
-//
-//   if  ( e.adjface[0].visible )
-//        fv = e.adjface[0];
-//   else fv = e.adjface[1];
-//
-//   (* Set vertex[0] & [1] of f to have the same orientation
-//      as do the corresponding vertices of fv. *)
-//   for ( i=0; fv.vertex[i] <> e.endpts[0]; ++i )
-//      ;
-//   (* Orient f the same as fv. *)
-//   if ( fv.vertex[ (i+1) % 3 ] <> e.endpts[1] ) begin
-//      f.vertex[0] = e.endpts[1];
-//      f.vertex[1] = e.endpts[0];
-//   end;
-//   else begin
-//      f.vertex[0] = e.endpts[0];
-//      f.vertex[1] = e.endpts[1];
-//      SWAP( s, f.edge[1], f.edge[2] );
-//   end;
-//   (* This swap is tricky. e is edge[0]. edge[1] is based on endpt[0],
-//      edge[2] on endpt[1].  So if e is oriented 'forwards,' we
-//      need to move edge[1] to follow [0], because it precedes. *)
-//
-//   f.vertex[2] = p;
-end;
-
-function TDelaunayTri.MakeConeFace(e: tEdge; p: tVertex): tFace;
-begin
-//   tEdge  new_edge[2];
-//   tFace  new_face;
-//   Integer     i, j;
-//
-//   (* Make two new edges (if don't already exist). *)
-//   for ( i=0; i < 2; ++i )
-//      (* If the edge exists, copy it into new_edge. *)
-//      if ( not ( new_edge[i] = e.endpts[i].duplicate) ) begin
-//   (* Otherwise (duplicate is nil), MakeNullEdge. *)
-//   new_edge[i] = MakeNullEdge();
-//   new_edge[i].endpts[0] = e.endpts[i];
-//   new_edge[i].endpts[1] = p;
-//   e.endpts[i].duplicate = new_edge[i];
-//      end;
-//
-//   (* Make the new face. *)
-//   new_face = MakeNullFace();
-//   new_face.edge[0] = e;
-//   new_face.edge[1] = new_edge[0];
-//   new_face.edge[2] = new_edge[1];
-//   MakeCcw( new_face, e, p );
-//
-//   (* Set the adjacent face pointers. *)
-//   for ( i=0; i < 2; ++i )
-//      for ( j=0; j < 2; ++j )
-//   (* Only one nil link should be set to new_face. *)
-//   if ( not new_edge[i].adjface[j] ) begin
-//      new_edge[i].adjface[j] = new_face;
-//      break;
-//   end;
-//
-//   exit( new_face;
 end;
 
 function TDelaunayTri.MakeFace(v0, v1, v2: tVertex; f: tFace): tFace;
@@ -1048,112 +1162,6 @@ begin
     io.Dbp(Format('   mark:%2d', [vertices.mark]));
     vertices := vertices.next;
   until vertices = temp;
-end;
-
-function TDelaunayTri.Volumei(f: tFace; p: tVertex): Integer;
-begin
-//   Integer      vol;
-//   Integer      ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz;
-//   Integer     bxdx, bydy, bzdz, cxdx, cydy, czdz;
-//   Double  vold;
-//   Integer     i;
-//
-//   ax = f.vertex[0].v.x;
-//   ay = f.vertex[0].v.y;
-//   az = f.vertex[0].v.z;
-//   bx = f.vertex[1].v.x;
-//   by = f.vertex[1].v.y;
-//   bz = f.vertex[1].v.z;
-//   cx = f.vertex[2].v.x;
-//   cy = f.vertex[2].v.y;
-//   cz = f.vertex[2].v.z;
-//   dx = p.v.x;
-//   dy = p.v.y;
-//   dz = p.v.z;
-//
-//   bxdx=bx-dx;
-//   bydy=by-dy;
-//   bzdz=bz-dz;
-//   cxdx=cx-dx;
-//   cydy=cy-dy;
-//   czdz=cz-dz;
-//   vol =   (az-dz)*(bxdx*cydy-bydy*cxdx)
-//         + (ay-dy)*(bzdz*cxdx-bxdx*czdz)
-//   + (ax-dx)*(bydy*czdz-bzdz*cydy);
-//
-//   exit( vol;
-end;
-
-function TDelaunayTri.Volumed(f: tFace; p: tVertex): Double;
-begin
-//   Double  vol;
-//   Double  ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz;
-//   Double  bxdx, bydy, bzdz, cxdx, cydy, czdz;
-//
-//   ax = f.vertex[0].v.x;
-//   ay = f.vertex[0].v.y;
-//   az = f.vertex[0].v.z;
-//   bx = f.vertex[1].v.x;
-//   by = f.vertex[1].v.y;
-//   bz = f.vertex[1].v.z;
-//   cx = f.vertex[2].v.x;
-//   cy = f.vertex[2].v.y;
-//   cz = f.vertex[2].v.z;
-//   dx = p.v.x;
-//   dy = p.v.y;
-//   dz = p.v.z;
-//
-//   bxdx=bx-dx;
-//   bydy=by-dy;
-//   bzdz=bz-dz;
-//   cxdx=cx-dx;
-//   cydy=cy-dy;
-//   czdz=cz-dz;
-//   vol = (az-dz)*(bxdx*cydy-bydy*cxdx)
-//         + (ay-dy)*(bzdz*cxdx-bxdx*czdz)
-//   + (ax-dx)*(bydy*czdz-bzdz*cydy);
-//
-//   exit( vol;
-end;
-
-function TDelaunayTri.VolumeSign(f: tFace; p: tVertex): Integer;
-begin
-//   Double  vol;
-//   Integer     voli;
-//   Double  ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz;
-//   Double  bxdx, bydy, bzdz, cxdx, cydy, czdz;
-//
-//   ax = f.vertex[0].v.x;
-//   ay = f.vertex[0].v.y;
-//   az = f.vertex[0].v.z;
-//   bx = f.vertex[1].v.x;
-//   by = f.vertex[1].v.y;
-//   bz = f.vertex[1].v.z;
-//   cx = f.vertex[2].v.x;
-//   cy = f.vertex[2].v.y;
-//   cz = f.vertex[2].v.z;
-//   dx = p.v.x;
-//   dy = p.v.y;
-//   dz = p.v.z;
-//
-//   bxdx=bx-dx;
-//   bydy=by-dy;
-//   bzdz=bz-dz;
-//   cxdx=cx-dx;
-//   cydy=cy-dy;
-//   czdz=cz-dz;
-//   vol =   (az-dz) * (bxdx*cydy - bydy*cxdx)
-//         + (ay-dy) * (bzdz*cxdx - bxdx*czdz)
-//   + (ax-dx) * (bydy*czdz - bzdz*cydy);
-//
-//   if ( debug )
-//      io.Dbp(stderr,'Face=%6x; Vertex=%d: vol(Integer) = %d, vol(Double) = %lf',
-//        f,p.vnum,voli,vol);
-//
-//   (* The volume should be an integer. *)
-//   if      ( vol > 0.5 )   exit(  1;
-//   else if ( vol < -0.5 )  exit( -1;
-//   else                    exit(  0;
 end;
 
 {$EndRegion}
