@@ -165,14 +165,14 @@ type
     // are visible, then the edge is marked for deletion.  If just one of the
     // adjacent faces is visible then a New face is constructed.
     function AddOne(p: tVertex): Boolean;
-    // VolumeSign exit(s the sign of the volume of the tetrahedron determined by f
+    // VolumeSign returns the sign of the volume of the tetrahedron determined by f
     // and p.  VolumeSign is +1 iff p is on the negative side of f,
     // where the positive side is determined by the rh-rule.  So the volume
     // is positive if the ccw normal to f points outside the tetrahedron.
     // The final fewer-multiplications form is due to Robert Fraczkiewicz.
     function VolumeSign(f: tFace; p: tVertex): Integer;
     // MakeConeFace makes a New face and two New edges between the
-    // edge and the point that are passed to it. It exit(s a pointer to
+    // edge and the point that are passed to it. It returns a pointer to
     // the New face.
     function MakeConeFace(e: tEdge; p: tVertex): tFace;
     // MakeCcw puts the vertices in the face structure in counterclock wise
@@ -180,15 +180,15 @@ type
     // order as in the visible face.  The third vertex is always p.
     procedure MakeCcw(f: tFace; e: tEdge; p: tVertex);
     // MakeNullEdge creates a New cell and initializes all pointers to nil
-    // and sets all flags to off.  It exit(s a pointer to the empty cell.
+    // and sets all flags to off.  It returns a pointer to the empty cell.
     function MakeNullEdge: tEdge;
     // MakeNullFace creates a New face structure and initializes all of its
-    // flags to nil and sets all the flags to off.  It exit(s a pointer
+    // flags to nil and sets all the flags to off.  It returns a pointer
     // to the empty cell.
     function MakeNullFace: tFace;
     // MakeFace creates a New face structure from three vertices
-    // (in ccw order).  It exit(s a pointer to the face.
-    function MakeFace(v0, v1, v2: tVertex; f: tFace): tFace;
+    // (in ccw order).  It returns a pointer to the face.
+    function MakeFace(v0, v1, v2: tVertex; fold: tFace): tFace;
     // CleanUp goes through each data structure list and clears all
     // flags and NULLs out some pointers.  The order of processing
     // (edges, faces, vertices) is important.
@@ -851,7 +851,7 @@ var
   fv: tFace;  // The visible face adjacent to e
   i: Integer; // Index of e.endpoint[0] in fv.
 begin
-  if  e.adjface[0].visible then
+  if e.adjface[0].visible then
     fv := e.adjface[0]
   else
     fv := e.adjface[1];
@@ -960,24 +960,26 @@ begin
 end;
 
 procedure TDelaunayTri.CleanFaces;
+var
+  f: tFace;  // Primary pointer into face list.
+  t: tFace;  // Temporary pointer, for deleting.
 begin
-//   tFace  f;  (* Primary pointer into face list. *)
-//   tFace  t;  (* Temporary pointer, for deleting. *)
-//
-//
-//   while ( faces and faces.visible ) begin
-//      f = faces;
-//      DELETE( faces, f );
-//   end;
-//   f = faces.next;
-//   repeat
-//      if ( f.visible ) begin
-//   t = f;
-//   f = f.next;
-//   DELETE( faces, t );
-//      end;
-//      else f = f.next;
-//   until f <> faces );
+  while (faces.head <> nil) and faces.head.visible do
+  begin
+    f := faces.head;
+    faces.Del(f);
+  end;
+  f := faces.head.next;
+  repeat
+    if f.visible then
+    begin
+      t := f;
+      f := f.next;
+      faces.Del(t);
+    end
+    else
+      f := f.next;
+  until f = faces.head;
 end;
 
 procedure TDelaunayTri.CleanUp;
@@ -988,112 +990,108 @@ begin
 end;
 
 procedure TDelaunayTri.CleanVertices;
+var
+  e: tEdge;
+  v, t: tVertex;
 begin
-//   tEdge    e;
-//   tVertex  v, t;
-//
-//   (* Mark all vertices incident to some undeleted edge as on the hull. *)
-//   e = edges;
-//   repeat
-//      e.endpts[0].onhull = e.endpts[1].onhull = ONHULL;
-//      e = e.next;
-//   end; while (e <> edges);
-//
-//   (* Delete all vertices that have been processed but
-//      are not on the hull. *)
-//   while ( vertices and vertices.mark and not vertices.onhull ) begin
-//      v = vertices;
-//      DELETE( vertices, v );
-//   end;
-//   v = vertices.next;
-//   repeat
-//      if ( v.mark and not v.onhull ) begin
-//   t = v;
-//   v = v.next;
-//   DELETE( vertices, t )
-//      end;
-//      else v = v.next;
-//   until v = vertices;
-//
-//   (* Reset flags. *)
-//   v = vertices;
-//   repeat
-//      v.duplicate = nil;
-//      v.onhull = not ONHULL;
-//      v = v.next;
-//   until v = vertices;
+  // Mark all vertices incident to some undeleted edge as on the hull.
+  e := edges.head;
+  repeat
+    e.endpts[0].onhull := ONHULL;
+    e.endpts[1].onhull := ONHULL;
+    e := e.next;
+  until e = edges.head;
+
+  // Delete all vertices that have been processed but are not on the hull.
+  while (vertices.head <> nil) and vertices.head.mark and not vertices.head.onhull do
+  begin
+    v := vertices.head;
+    vertices.Del(v);
+  end;
+  v := vertices.head.next;
+  repeat
+    if v.mark and not v.onhull then
+    begin
+      t := v;
+      v := v.next;
+      vertices.Del(t);
+    end
+    else
+      v := v.next;
+  until v = vertices.head;
+
+  // Reset flags.
+  v := vertices.head;
+  repeat
+    v.duplicate := nil;
+    v.onhull := not ONHULL;
+    v := v.next;
+  until v = vertices.head;
 end;
 
 function TDelaunayTri.Collinear(a, b, c: tVertex): Boolean;
 begin
-//   exit(
-//         ( c.v.z - a.v.z ) * ( b.v.y - a.v.y ) -
-//         ( b.v.z - a.v.z ) * ( c.v.y - a.v.y ) == 0
-//      and ( b.v.z - a.v.z ) * ( c.v.x - a.v.x ) -
-//         ( b.v.x - a.v.x ) * ( c.v.z - a.v.z ) == 0
-//      and ( b.v.x - a.v.x ) * ( c.v.y - a.v.y ) -
-//         ( b.v.y - a.v.y ) * ( c.v.x - a.v.x ) == 0  ;
+  Result :=
+    ((c.v.z - a.v.z) * (b.v.y - a.v.y) -
+     (b.v.z - a.v.z) * (c.v.y - a.v.y) = 0) and
+    ((b.v.z - a.v.z) * (c.v.x - a.v.x) -
+     (b.v.x - a.v.x) * ( c.v.z - a.v.z) = 0) and
+    ((b.v.x - a.v.x) * ( c.v.y - a.v.y) -
+     (b.v.y - a.v.y) * ( c.v.x - a.v.x) = 0);
 end;
 
 procedure TDelaunayTri.Consistency;
+var
+  e: tEdge;
+  i, j: Integer;
 begin
-//   register tEdge  e;
-//   register Integer    i, j;
-//
-//   e = edges;
-//
-//   repeat
-//      (* find index of endpoint[0] in adjacent face[0] *)
-//      for ( i = 0; e.adjface[0].vertex[i] <> e.endpts[0]; ++i )
-//   ;
-//
-//      (* find index of endpoint[0] in adjacent face[1] *)
-//      for ( j = 0; e.adjface[1].vertex[j] <> e.endpts[0]; ++j )
-//   ;
-//
-//      (* check if the endpoints occur in opposite order *)
-//      if ( not ( e.adjface[0].vertex[ (i+1) % 3 ] ==
-//        e.adjface[1].vertex[ (j+2) % 3 ] or
-//        e.adjface[0].vertex[ (i+2) % 3 ] ==
-//        e.adjface[1].vertex[ (j+1) % 3 ] )  )
-//   break;
-//      e = e.next;
-//
-//   until e <> edges );
-//
-//   if ( e <> edges )
-//      io.Dbp( stderr, 'Checks: edges are NOT consistent.');
-//   else
-//      io.Dbp( stderr, 'Checks: edges consistent.');
+  e := edges.head;
+  repeat
+    // find index of endpoint[0] in adjacent face[0]
+    i := 0;
+    while e.adjface[0].vertex[i] <> e.endpts[0] do Inc(i);
+    // find index of endpoint[0] in adjacent face[1]
+    j := 0;
+    while e.adjface[1].vertex[j] <> e.endpts[0] do Inc(j);
+    // check if the endpoints occur in opposite order
+    if not ((e.adjface[0].vertex[(i + 1) mod 3] =
+             e.adjface[1].vertex[(j + 2) mod 3]) or
+            (e.adjface[0].vertex[(i + 2) mod 3 ] =
+             e.adjface[1].vertex[(j + 1) mod 3])) then
+      break;
+    e := e.next;
+  until e = edges.head;
+  if e <> edges.head then
+    io.Dbp('Checks: edges are NOT consistent.')
+  else
+    io.Dbp('Checks: edges consistent.');
 end;
 
 procedure TDelaunayTri.Convexity;
+var
+  f: tFace;
+  v: tVertex;
+  vol: Integer;
 begin
-//   register tFace    f;
-//   register tVertex  v;
-//   Integer               vol;
-//
-//   f = faces;
-//
-//   repeat
-//      v = vertices;
-//      repeat
-//   if ( v.mark ) begin
-//      vol = VolumeSign( f, v );
-//      if ( vol < 0 )
-//         break;
-//   end;
-//   v = v.next;
-//      until v = vertices;
-//
-//      f = f.next;
-//
-//   until f <> faces );
-//
-//   if ( f <> faces )
-//      io.Dbp( stderr, 'Checks: NOT convex.');
-//   else if ( check )
-//      io.Dbp( stderr, 'Checks: convex.');
+  f := faces.head;
+  repeat
+    v := vertices.head;
+    repeat
+      if v.mark then
+      begin
+        vol := VolumeSign(f, v);
+        if vol < 0 then
+           break;
+      end;
+      v := v.next;
+    until v = vertices.head;
+    f := f.next;
+  until f = faces.head;
+
+  if f <> faces.head then
+    io.Dbp('Checks: NOT convex.')
+  else if io.check then
+    io.Dbp('Checks: convex.');
 end;
 
 procedure TDelaunayTri.LowerFaces;
@@ -1119,76 +1117,68 @@ begin
    io.Dbp(Format('A total of %d lower faces identified.', [Flower]));
 end;
 
-function TDelaunayTri.MakeFace(v0, v1, v2: tVertex; f: tFace): tFace;
+function TDelaunayTri.MakeFace(v0, v1, v2: tVertex; fold: tFace): tFace;
+var
+  f: tFace;
+  e0, e1, e2: tEdge;
 begin
-//   tFace  f;
-//   tEdge  e0, e1, e2;
-//
-//   (* Create edges of the initial triangle. *)
-//   if( not fold ) begin
-//     e0 = MakeNullEdge();
-//     e1 = MakeNullEdge();
-//     e2 = MakeNullEdge();
-//   end;
-//   else begin (* Copy from fold, in reverse order. *)
-//     e0 = fold.edge[2];
-//     e1 = fold.edge[1];
-//     e2 = fold.edge[0];
-//   end;
-//   e0.endpts[0] = v0;              e0.endpts[1] = v1;
-//   e1.endpts[0] = v1;              e1.endpts[1] = v2;
-//   e2.endpts[0] = v2;              e2.endpts[1] = v0;
-//
-//   (* Create face for triangle. *)
-//   f = MakeNullFace();
-//   f.edge[0]   = e0;  f.edge[1]   = e1; f.edge[2]   = e2;
-//   f.vertex[0] = v0;  f.vertex[1] = v1; f.vertex[2] = v2;
-//
-//   (* Link edges to face. *)
-//   e0.adjface[0] = e1.adjface[0] = e2.adjface[0] = f;
-//
-//   exit( f;
+  // Create edges of the initial triangle.
+  if fold = nil then
+  begin
+    e0 := MakeNullEdge();
+    e1 := MakeNullEdge();
+    e2 := MakeNullEdge();
+  end
+  else
+  begin
+    // Copy from fold, in reverse order.
+    e0 := fold.edge[2];
+    e1 := fold.edge[1];
+    e2 := fold.edge[0];
+  end;
+  e0.endpts[0] := v0; e0.endpts[1] := v1;
+  e1.endpts[0] := v1; e1.endpts[1] := v2;
+  e2.endpts[0] := v2; e2.endpts[1] := v0;
+
+  // Create face for triangle.
+  f := MakeNullFace();
+  f.edge[0] := e0; f.edge[1] := e1; f.edge[2] := e2;
+  f.vertex[0] := v0; f.vertex[1] := v1; f.vertex[2] := v2;
+
+  // Link edges to face.
+  e0.adjface[0] := f;
+  e1.adjface[0] := f;
+  e2.adjface[0] := f;
+
+  Result := f;
 end;
 
 function TDelaunayTri.MakeNullFace: tFace;
+var
+  f: tFace;
+  i: Integer;
 begin
-//   tFace  f;
-//   Integer    i;
-//
-//   New( f, tsFace);
-//   for ( i=0; i < 3; ++i ) begin
-//      f.edge[i] = nil;
-//      f.vertex[i] = nil;
-//   end;
-//   f.visible = not VISIBLE;
-//   ADD( faces, f );
-//   exit( f;
+  New(f);
+  for i := 0 to 2 do
+  begin
+    f.edge[i] := nil;
+    f.vertex[i] := nil;
+  end;
+  f.visible := not VISIBLE;
+  faces.Add(f);
+  Result := f;
 end;
 
 function TDelaunayTri.Normz(f: tFace): Integer;
+var
+  a, b, c: tVertex;
 begin
-//   tVertex a, b, c;
-//   (*Double ba0, ca1, ba1, ca0,z;*)
-//
-//   a = f.vertex[0];
-//   b = f.vertex[1];
-//   c = f.vertex[2];
-//
-//(*
-//   ba0 = ( b.v.x - a.v.x );
-//   ca1 = ( c.v.y - a.v.y );
-//   ba1 = ( b.v.y - a.v.y );
-//   ca0 = ( c.v.x - a.v.x );
-//
-//   z = ba0 * ca1 - ba1 * ca0;
-//   Format('Normz = %lf=%g', z,z);
-//   if      ( z > 0.0 )  exit(  1;
-//   else if ( z < 0.0 )  exit( -1;
-//   else                 exit(  0;
-//*)
-//   exit(
-//      ( b.v.x - a.v.x ) * ( c.v.y - a.v.y ) -
-//      ( b.v.y - a.v.y ) * ( c.v.x - a.v.x );
+  a := f.vertex[0];
+  b := f.vertex[1];
+  c := f.vertex[2];
+  Result :=
+    (b.v.x - a.v.x) * (c.v.y - a.v.y) -
+    (b.v.y - a.v.y) * (c.v.x - a.v.x);
 end;
 
 procedure TDelaunayTri.PrintEdges;
