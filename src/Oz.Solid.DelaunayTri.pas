@@ -128,7 +128,7 @@ type
 {$Region 'TDelaunayTri'}
 
   TDelaunayTri = class
-  private
+  var
     io: TsvgIO;
     vertices: TVertexList;
     edges: TEdgeList;
@@ -926,7 +926,7 @@ var
   t: tEdge;  // Temporary edge pointer.
 begin
   // Integrate the newface's into the data structure.
-  //Check every edge.
+  // Check every edge.
   e := edges.head;
   repeat
     if e.newface <> nil then
