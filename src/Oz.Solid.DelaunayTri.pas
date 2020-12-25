@@ -37,7 +37,7 @@ type
     x, y, z: Integer;
   end;
 
-{$Region 'tsVertex: vertices'}
+{$Region 'tsVertex, tVertexHelper: vertices'}
 
   tsVertex = record
     v: T3i;
@@ -49,9 +49,15 @@ type
     prev: tVertex;
   end;
 
+  TVertexList = record
+    head: tVertex;
+    procedure Add(p: tVertex);
+    procedure Del(p: tVertex);
+  end;
+
 {$EndRegion}
 
-{$Region 'tsEdge: edges'}
+{$Region 'tsEdge, tEdgeHelper: edges'}
 
   tsEdge = record
     adjface: array [0..1] of tFace;
@@ -62,17 +68,29 @@ type
     prev: tEdge;
   end;
 
+  TEdgeList = record
+    head: tEdge;
+    procedure Add(p: tEdge);
+    procedure Del(p: tEdge);
+  end;
+
 {$EndRegion}
 
-{$Region 'tsFace: faces'}
+{$Region 'tsFace, tFaceHelper: faces'}
 
   tsFace = record
     edge: array [0..2] of tEdge;
     vertex: array [0..2] of tVertex;
-    visible: Boolean;   // T iff face visible from new point.
+    visible: Boolean;   // T iff face visible from New point.
     lower: Boolean;     // T iff on the lower hull
     next: tFace;
     prev: tFace;
+  end;
+
+  TFaceList = record
+    head: tFace;
+    procedure Add(p: tFace);
+    procedure Del(p: tFace);
   end;
 
 {$EndRegion}
@@ -112,12 +130,10 @@ type
   TDelaunayTri = class
   private
     io: TsvgIO;
-    vertices: tVertex;
-    edges: tEdge;
-    faces: tFace;
+    vertices: TVertexList;
+    edges: TEdgeList;
+    faces: TFaceList;
     xmin, ymin, xmax, ymax: Integer;
-    procedure Add(var head: tVertex; p: tVertex);
-    procedure Delete(var head: tEdge; p: tEdge);
     // Volumed is the same as VolumeSign but computed with doubles.
     // For protection against overflow.
     function Volumed(f: tFace; p: tVertex): Double;
@@ -147,7 +163,7 @@ type
     // that point.  If none are visible then the point is marked as not
     // onhull.  Next is a loop over edges.  If both faces adjacent to an edge
     // are visible, then the edge is marked for deletion.  If just one of the
-    // adjacent faces is visible then a new face is constructed.
+    // adjacent faces is visible then a New face is constructed.
     function AddOne(p: tVertex): Boolean;
     // VolumeSign exit(s the sign of the volume of the tetrahedron determined by f
     // and p.  VolumeSign is +1 iff p is on the negative side of f,
@@ -155,22 +171,22 @@ type
     // is positive if the ccw normal to f points outside the tetrahedron.
     // The final fewer-multiplications form is due to Robert Fraczkiewicz.
     function VolumeSign(f: tFace; p: tVertex): Integer;
-    // MakeConeFace makes a new face and two new edges between the
+    // MakeConeFace makes a New face and two New edges between the
     // edge and the point that are passed to it. It exit(s a pointer to
-    // the new face.
+    // the New face.
     function MakeConeFace(e: tEdge; p: tVertex): tFace;
     // MakeCcw puts the vertices in the face structure in counterclock wise
     // order. We want to store the vertices in the same
     // order as in the visible face.  The third vertex is always p.
     procedure MakeCcw(f: tFace; e: tEdge; p: tVertex);
-    // MakeNullEdge creates a new cell and initializes all pointers to nil
+    // MakeNullEdge creates a New cell and initializes all pointers to nil
     // and sets all flags to off.  It exit(s a pointer to the empty cell.
     function MakeNullEdge: tEdge;
-    // MakeNullFace creates a new face structure and initializes all of its
+    // MakeNullFace creates a New face structure and initializes all of its
     // flags to nil and sets all the flags to off.  It exit(s a pointer
     // to the empty cell.
     function MakeNullFace: tFace;
-    // MakeFace creates a new face structure from three vertices
+    // MakeFace creates a New face structure from three vertices
     // (in ccw order).  It exit(s a pointer to the face.
     function MakeFace(v0, v1, v2: tVertex; f: tFace): tFace;
     // CleanUp goes through each data structure list and clears all
@@ -231,6 +247,102 @@ begin
   a := b;
   b := temp;
 end;
+
+{$Region 'TVertexList'}
+
+procedure TVertexList.Add(p: tVertex);
+begin
+  if head <> nil then
+  begin
+    p.next := head;
+    p.prev := head.prev;
+    head.prev := p;
+    p.prev.next := p;
+  end
+  else
+  begin
+    head := p;
+    head.next := p;
+    head.prev := p;
+  end;
+end;
+
+procedure TVertexList.Del(p: tVertex);
+begin
+  if head = head.next then
+    head := nil
+  else if p = head then
+    head := head.next;
+  p.next.prev := p.prev;
+  p.prev.next := p.next;
+  Dispose(p);
+end;
+
+{$EndRegion}
+
+{$Region 'TEdgeList'}
+
+procedure TEdgeList.Add(p: tEdge);
+begin
+  if head <> nil then
+  begin
+    p.next := head;
+    p.prev := head.prev;
+    head.prev := p;
+    p.prev.next := p;
+  end
+  else
+  begin
+    head := p;
+    head.next := p;
+    head.prev := p;
+  end;
+end;
+
+procedure TEdgeList.Del(p: tEdge);
+begin
+  if head = head.next then
+    head := nil
+  else if p = head then
+    head := head.next;
+  p.next.prev := p.prev;
+  p.prev.next := p.next;
+  Dispose(p);
+end;
+
+{$EndRegion}
+
+{$Region 'TFaceList'}
+
+procedure TFaceList.Add(p: tFace);
+begin
+  if head <> nil then
+  begin
+    p.next := head;
+    p.prev := head.prev;
+    head.prev := p;
+    p.prev.next := p;
+  end
+  else
+  begin
+    head := p;
+    head.next := p;
+    head.prev := p;
+  end;
+end;
+
+procedure TFaceList.Del(p: tFace);
+begin
+  if head = head.next then
+    head := nil
+  else if p = head then
+    head := head.next;
+  p.next.prev := p.prev;
+  p.prev.next := p.next;
+  Dispose(p);
+end;
+
+{$EndRegion}
 
 {$Region 'TsvgIO'}
 
@@ -393,35 +505,7 @@ begin
   DoubleTriangle;
   ConstructHull;
   LowerFaces;
-  io.Print(vertices, edges, faces);
-end;
-
-procedure TDelaunayTri.Add(var head: tVertex; p: tVertex);
-begin
-  if head <> nil then
-  begin
-    p.next := head;
-    p.prev := head.prev;
-    head.prev := p;
-    p.prev.next := p;
-  end
-  else
-  begin
-    head := p;
-    head.next := p;
-    head.prev := p;
-  end;
-end;
-
-procedure TDelaunayTri.Delete(var head: tEdge; p: tEdge);
-begin
-  if head = head.next then
-    head := nil
-  else if p = head then
-    head := head.next;
-  p.next.prev := p.prev;
-  p.prev.next := p.next;
-  Dispose(p);
+  io.Print(vertices.head, edges.head, faces.head);
 end;
 
 function TDelaunayTri.MakeNullVertex: tVertex;
@@ -432,7 +516,7 @@ begin
   v.duplicate := nil;
   v.onhull := not ONHULL;
   v.mark := not PROCESSED;
-  Add(vertices, v);
+  vertices.Add(v);
   Result := v;
 end;
 
@@ -492,11 +576,11 @@ var
 begin
   f1 := nil;
   (* Find 3 non-Collinear points. *)
-  v0 := vertices;
+  v0 := vertices.head;
   while Collinear(v0, v0.next, v0.next.next) do
   begin
     v0 := v0.next;
-    if v0 = vertices then
+    if v0 = vertices.head then
       raise Exception.Create('DoubleTriangle:  All points are Collinear!');
   end;
   v1 := v0.next;
@@ -531,11 +615,11 @@ begin
   end;
 
   // Insure that v3 will be the first added.
-  vertices := v3;
+  vertices.head := v3;
   if io.debug then
   begin
     io.Dbp('DoubleTriangle: finished. Head repositioned at v3.');
-    PrintOut(vertices);
+    PrintOut(vertices.head);
   end;
 end;
 
@@ -545,7 +629,7 @@ var
   vol: Integer;
   changed: Boolean;  // T if addition changes hull; not used.
 begin
-  v := vertices;
+  v := vertices.head;
   repeat
     vnext := v.next;
     if not v.mark then
@@ -561,7 +645,7 @@ begin
       if io.debug then PrintOut(v);
     end;
     v := vnext;
-  until v = vertices;
+  until v = vertices.head;
 end;
 
 function TDelaunayTri.AddOne(p: tVertex): Boolean;
@@ -575,11 +659,11 @@ begin
   if io.debug then
   begin
     io.Dbp('AddOne: starting to add v%d.', [p.vnum]);
-    PrintOut(vertices);
+    PrintOut(vertices.head);
   end;
 
   // Mark faces visible from p.
-  f := faces;
+  f := faces.head;
   repeat
     vol := VolumeSign(f, p);
     if io.debug then
@@ -590,7 +674,7 @@ begin
       vis := True;
     end;
     f := f.next;
-  until f = faces;
+  until f = faces.head;
 
   // If no faces are visible from p, then p is inside the hull.
   if not vis then
@@ -601,17 +685,17 @@ begin
 
   // Mark edges in interior of visible region for deletion.
   // Erect a newface based on each border edge.
-  e := edges;
+  e := edges.head;
   repeat
     temp := e.next;
     if e.adjface[0].visible and e.adjface[1].visible then
       // e interior: mark for deletion.
       e.delete := REMOVED
     else if e.adjface[0].visible or e.adjface[1].visible then
-      // e border: make a new face.
+      // e border: make a New face.
       e.newface := MakeConeFace(e, p);
     e := temp;
-  until e = edges;
+  until e = edges.head;
   Result := True;
 end;
 
@@ -727,7 +811,7 @@ var
   new_edge: array [0..1] of tEdge;
   new_face: tFace;
 begin
-  // Make two new edges (if don't already exist).
+  // Make two New edges (if don't already exist).
   for i := 0 to 1 do
   begin
     new_edge[i] := e.endpts[i].duplicate;
@@ -742,7 +826,7 @@ begin
     end;
   end;
 
-  // Make the new face.
+  // Make the New face.
   new_face := MakeNullFace();
   new_face.edge[0] := e;
   new_face.edge[1] := new_edge[0];
@@ -793,6 +877,21 @@ begin
   f.vertex[2] := p;
 end;
 
+function TDelaunayTri.MakeNullEdge: tEdge;
+var
+  e: tEdge;
+begin
+  New(e);
+  e.adjface[0] := nil;
+  e.adjface[1] := nil;
+  e.newface := nil;
+  e.endpts[0] := nil;
+  e.endpts[1] := nil;
+  e.delete := not REMOVED;
+  edges.Add(e);
+  Result := e;
+end;
+
 procedure TDelaunayTri.Checks;
 var
   v: tVertex;
@@ -803,21 +902,21 @@ begin
   Vc := 0; Ec := 0; Fc := 0;
   Consistency;
   Convexity;
-  if v = vertices then
+  if v = vertices.head then
     repeat
       if v.mark then Inc(Vc);
       v := v.next;
-    until v = vertices;
-  if e = edges then
+    until v = vertices.head;
+  if e = edges.head then
     repeat
       Inc(Ec);
       e := e.next;
-      until e = edges;
-  if f = faces then
+    until e = edges.head;
+  if f = faces.head then
     repeat
       Inc(Fc);
       f := f.next;
-    until f = faces;
+    until f = faces.head;
   io.CheckEuler(Vc, Ec, Fc);
 end;
 
@@ -828,7 +927,7 @@ var
 begin
   // Integrate the newface's into the data structure.
   //Check every edge.
-  e := edges;
+  e := edges.head;
   repeat
     if e.newface <> nil then
     begin
@@ -839,25 +938,25 @@ begin
       e.newface := nil;
     end;
     e := e.next;
-  until e = edges;
+  until e = edges.head;
 
   (* Delete any edges marked for deletion. *)
-  while (edges <> nil) and edges.delete do
+  while (edges.head <> nil) and edges.head.delete do
   begin
-    e := edges;
-    Delete(edges, e);
+    e := edges.head;
+    edges.Del(e);
   end;
-  e := edges.next;
+  e := edges.head.next;
   repeat
     if e.delete then
     begin
       t := e;
       e := e.next;
-      Delete(edges, t);
+      edges.Del(t);
     end
     else
       e := e.next;
-  until e = edges;
+  until e = edges.head;
 end;
 
 procedure TDelaunayTri.CleanFaces;
@@ -1002,7 +1101,7 @@ var
   f: tFace;
   Flower, z: Integer; // Total number of lower faces.
 begin
-  f := faces;
+  f := faces.head;
   Flower := 0;
   repeat
     z := Normz(f);
@@ -1016,7 +1115,7 @@ begin
     else
       f.lower := False;
     f := f.next;
-   until f = faces;
+   until f = faces.head;
    io.Dbp(Format('A total of %d lower faces identified.', [Flower]));
 end;
 
@@ -1051,23 +1150,12 @@ begin
 //   exit( f;
 end;
 
-function TDelaunayTri.MakeNullEdge: tEdge;
-begin
-//   tEdge  e;
-//   NEW( e, tsEdge );
-//   e.adjface[0] = e.adjface[1] = e.newface = nil;
-//   e.endpts[0] = e.endpts[1] = nil;
-//   e.delete = not REMOVED;
-//   ADD( edges, e );
-//   exit( e;
-end;
-
 function TDelaunayTri.MakeNullFace: tFace;
 begin
 //   tFace  f;
 //   Integer    i;
 //
-//   NEW( f, tsFace);
+//   New( f, tsFace);
 //   for ( i=0; i < 3; ++i ) begin
 //      f.edge[i] = nil;
 //      f.vertex[i] = nil;
@@ -1108,20 +1196,20 @@ var
   temp: tEdge;
   i: Integer;
 begin
-  temp := edges;
+  temp := edges.head;
   io.Dbp('Edge List');
-  if edges <> nil then
+  if edges.head <> nil then
   repeat
-    io.Dbp(Format('  addr: %6x'#9, [edges]));
+    io.Dbp(Format('  addr: %6x'#9, [edges.head]));
     io.Dbp('adj: ');
     for i := 0 to 1 do
-      io.Dbp(Format('%6x', [edges.adjface[i]]));
+      io.Dbp(Format('%6x', [edges.head.adjface[i]]));
     io.Dbp('  endpts:');
     for i := 0 to 1 do
-      io.Dbp(Format('%4d', [edges.endpts[i].vnum]));
-    io.Dbp(Format('  del:%3d', [edges.delete]));
-    edges := edges.next;
-  until edges = temp;
+      io.Dbp(Format('%4d', [edges.head.endpts[i].vnum]));
+    io.Dbp(Format('  del:%3d', [edges.head.delete]));
+    edges.head := edges.head.next;
+  until edges.head = temp;
 end;
 
 procedure TDelaunayTri.PrintFaces;
@@ -1129,20 +1217,20 @@ var
   temp: tFace;
   i: Integer;
 begin
-  temp := faces;
+  temp := faces.head;
   io.Dbp('Face List');
-  if faces <> nil then
+  if faces.head <> nil then
   repeat
-    io.Dbp(Format('  addr: %6x'#9, [faces]));
+    io.Dbp(Format('  addr: %6x'#9, [faces.head]));
     io.Dbp('  edges:');
     for i := 0 to 2 do
-      io.Dbp(Format('%6x', [faces.edge[i]]));
+      io.Dbp(Format('%6x', [faces.head.edge[i]]));
     io.Dbp('  vert:');
     for i := 0 to 2 do
-      io.Dbp(Format('%4d', [faces.vertex[i].vnum]));
-    io.Dbp(Format('  vis: %d', [faces.visible]));
-    faces := faces.next;
-  until faces = temp;
+      io.Dbp(Format('%4d', [faces.head.vertex[i].vnum]));
+    io.Dbp(Format('  vis: %d', [faces.head.visible]));
+    faces.head := faces.head.next;
+  until faces.head = temp;
 end;
 
 procedure TDelaunayTri.PrintOut(v: tVertex);
@@ -1165,17 +1253,17 @@ var
   i: Integer;
 begin
   io.Dbp('Vertex List');
-  if vertices <> nil then
+  if vertices.head <> nil then
   repeat
-    io.Dbp(Format('  addr %6x\t', [vertices]));
-    io.Dbp(Format('  vnum %4d', [vertices.vnum]));
+    io.Dbp(Format('  addr %6x\t', [vertices.head]));
+    io.Dbp(Format('  vnum %4d', [vertices.head.vnum]));
     io.Dbp(Format('   (%6d, %6d, %6d)',
-      [vertices.v.x, vertices.v.y, vertices.v.z]));
-    io.Dbp(Format('   active:%3d', [vertices.onhull]));
-    io.Dbp(Format('   dup:%5x', [vertices.duplicate]));
-    io.Dbp(Format('   mark:%2d', [vertices.mark]));
-    vertices := vertices.next;
-  until vertices = temp;
+      [vertices.head.v.x, vertices.head.v.y, vertices.head.v.z]));
+    io.Dbp(Format('   active:%3d', [vertices.head.onhull]));
+    io.Dbp(Format('   dup:%5x', [vertices.head.duplicate]));
+    io.Dbp(Format('   mark:%2d', [vertices.head.mark]));
+    vertices.head := vertices.head.next;
+  until vertices.head = temp;
 end;
 
 {$EndRegion}
