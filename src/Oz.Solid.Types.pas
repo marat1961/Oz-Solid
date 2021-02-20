@@ -297,8 +297,6 @@ type
 
 procedure Swap(var i, j: T2dPoint); overload;
 procedure Swap(var i, j: TsdVector); overload;
-function Bernstein(k, deg: Integer; t: Double): Double;
-function BernsteinDerivative(k, deg: Integer; t: Double): Double;
 function GetNormal(v: TsdVector): TsdVector;
 
 // Return intersection point of the segments
@@ -329,49 +327,6 @@ var
   temp: TsdVector;
 begin
   temp := i; i := j; j := temp;
-end;
-
-function Bernstein(k, deg: Integer; t: Double): Double;
-type
-  PExponents = ^TExponents;
-  TExponents = record
-    c0, c1, c2, c3: Double;
-  end;
-  TBernsteinCoeff = array [0..3, 0..3] of TExponents;
-const
-  BernsteinCoeff: array [0..3, 0..3] of TExponents =(
-    ((c0: 1; c1: 0;  c2: 0; c3:  0), (), (), ()),
-    ((c0: 1; c1: -1; c2: 0; c3:  0), (c0: 0; c1: 1; c2: 0; c3: 0), (), ()),
-    ((c0: 1; c1: -2; c2: 1; c3:  0), (c0: 0; c1: 2; c2: -2; c3: 0),
-     (c0: 0; c1: 0;  c2: 1; c3:  0), ()),
-    ((c0: 1; c1: -3; c2: 3; c3: -1), (c0: 0; c1: 3; c2: -6; c3: 3),
-     (c0: 0; c1: 0;  c2: 3; c3: -3), (c0: 0; c1: 0; c2: 0; c3: 1)));
-var
-  e: PExponents;
-begin
-  e := @BernsteinCoeff[deg][k];
-  Result := (((e.c3 * t + e.c2) * t) + e.c1) * t + e.c0;
-end;
-
-function BernsteinDerivative(k, deg: Integer; t: Double): Double;
-type
-  PExponents = ^TExponents;
-  TExponents = record
-    c0, c1, c2: Double;
-  end;
-const
-  BernsteinDerivativeCoeff: array [0..3, 0..3] of TExponents = (
-    ((c0:  0; c1: 0; c2:  0), (), (), ()),
-    ((c0: -1; c1: 0; c2:  0), (c0: 1; c1:   0; c2: 0), (), ()),
-    ((c0: -2; c1: 2; c2:  0), (c0: 2; c1:  -4; c2: 0),
-     (c0: 0;  c1: 2; c2:  0), ()),
-    ((c0: -3; c1: 6; c2: -3), (c0: 3; c1: -12; c2: 9),
-     (c0: 0; c1: 6; c2: -9),  (c0: 0; c1:   0; c2: 3)));
-var
-  e: PExponents;
-begin
-  e := @BernsteinDerivativeCoeff[deg][k];
-  Result := ((e.c2 * t) + e.c1) * t + e.c0;
 end;
 
 function GetNormal(v: TsdVector): TsdVector;

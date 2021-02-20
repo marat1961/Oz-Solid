@@ -98,6 +98,7 @@
         <DCCReference Include="..\src\Oz.Solid.VectorInt.pas"/>
         <DCCReference Include="..\src\Oz.Solid.EarTri.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Svg.pas"/>
+        <DCCReference Include="..\src\Oz.Solid.Bezier.pas"/>
         <DCCReference Include="..\src\Oz.Solid.DelaunayTri.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
