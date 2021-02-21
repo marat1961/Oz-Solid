@@ -84,7 +84,6 @@ type
     List: TsgRecordList<TsdVector>;
     procedure Init;
     procedure Free;
-    // Искать вектор
     function Find(const Pt: TsdVector): Integer;
   end;
 
@@ -277,12 +276,14 @@ end;
 
 {$EndRegion}
 
-{ TsdVectorHelper }
+{$Region 'TsdVectorHelper'}
 
 function TsdVectorHelper.Project4d: TsdVector4;
 begin
   Result := TsdVector4.From(1, x, y, z);
 end;
+
+{$EndRegion}
 
 end.
 

@@ -128,18 +128,20 @@ type
 {$Region 'TDelaunayTri'}
 
   TDelaunayTri = class
-  var
+  private
     io: TsvgIO;
     vertices: TVertexList;
     edges: TEdgeList;
     faces: TFaceList;
-    xmin, ymin, xmax, ymax: Integer;
+//    xmin, ymin, xmax, ymax: Integer;
     // Volumed is the same as VolumeSign but computed with doubles.
     // For protection against overflow.
     function Volumed(f: tFace; p: tVertex): Double;
     function Volumei(f: tFace; p: tVertex): Integer;
   public
-    procedure Build(const filename: string);
+    constructor Create(const filename: string);
+    destructor Destroy; override;
+    procedure Build;
     // MakeNullVertex: Makes a vertex, nulls out fields
     function MakeNullVertex: tVertex;
     // Reads in the vertices, and links them into a circular
@@ -499,9 +501,21 @@ end;
 
 {$Region 'TDelaunayTri'}
 
-procedure TDelaunayTri.Build(const filename: string);
+constructor TDelaunayTri.Create(const filename: string);
 begin
+  io.Init(filename);
+  io.debug := True;
   ReadVertices(filename);
+end;
+
+destructor TDelaunayTri.Destroy;
+begin
+  io.Free;
+  inherited;
+end;
+
+procedure TDelaunayTri.Build;
+begin
   DoubleTriangle;
   ConstructHull;
   LowerFaces;
@@ -532,7 +546,7 @@ begin
   str := TStringList.Create;
   try
     str.LoadFromFile(filename);
-    for i := 0 to str.Count - 1 do
+    for i := 1 to str.Count - 1 do
     begin
       line := str.Strings[i];
       sa := line.Split([Chr(9)]);
@@ -667,7 +681,7 @@ begin
   repeat
     vol := VolumeSign(f, p);
     if io.debug then
-      io.Dbp('faddr: %6x   paddr: %6x   Vol = %d', [f, p, vol]);
+      io.Dbp('faddr: %6x   paddr: %6x   Vol = %d', [Integer(f), Integer(p), vol]);
     if vol < 0 then
     begin
       f.visible := VISIBLE;
@@ -729,8 +743,7 @@ begin
        + (ay - dy) * (bzdz * cxdx - bxdx * czdz)
        + (ax - dx) * (bydy * czdz - bzdz * cydy);
   if io.debug then
-    io.Dbp('Face=%6x; Vertex=%d: vol(Integer) = %d, vol(Double) = %lf',
-      [f, p.vnum, voli, vol]);
+    io.Dbp('Face=%x Vertex=%d vol=%d, vol=%f', [Integer(f), p.vnum, voli, vol]);
 
   // The volume should be an integer.
   if vol > 0.5 then
@@ -1054,10 +1067,8 @@ begin
     j := 0;
     while e.adjface[1].vertex[j] <> e.endpts[0] do Inc(j);
     // check if the endpoints occur in opposite order
-    if not ((e.adjface[0].vertex[(i + 1) mod 3] =
-             e.adjface[1].vertex[(j + 2) mod 3]) or
-            (e.adjface[0].vertex[(i + 2) mod 3 ] =
-             e.adjface[1].vertex[(j + 1) mod 3])) then
+    if not ((e.adjface[0].vertex[(i + 1) mod 3] = e.adjface[1].vertex[(j + 2) mod 3]) or
+            (e.adjface[0].vertex[(i + 2) mod 3] = e.adjface[1].vertex[(j + 1) mod 3])) then
       break;
     e := e.next;
   until e = edges.head;
@@ -1190,14 +1201,14 @@ begin
   io.Dbp('Edge List');
   if edges.head <> nil then
   repeat
-    io.Dbp(Format('  addr: %6x'#9, [edges.head]));
+    io.Dbp(Format('  addr: %6x'#9, [Integer(edges.head)]));
     io.Dbp('adj: ');
     for i := 0 to 1 do
-      io.Dbp(Format('%6x', [edges.head.adjface[i]]));
+      io.Dbp(Format('%6x', [Integer(edges.head.adjface[i])]));
     io.Dbp('  endpts:');
     for i := 0 to 1 do
       io.Dbp(Format('%4d', [edges.head.endpts[i].vnum]));
-    io.Dbp(Format('  del:%3d', [edges.head.delete]));
+    io.Dbp(Format('  del:%3d', [Ord(edges.head.delete)]));
     edges.head := edges.head.next;
   until edges.head = temp;
 end;
@@ -1211,21 +1222,21 @@ begin
   io.Dbp('Face List');
   if faces.head <> nil then
   repeat
-    io.Dbp(Format('  addr: %6x'#9, [faces.head]));
+    io.Dbp(Format('  addr: %6x'#9, [Integer(faces.head)]));
     io.Dbp('  edges:');
     for i := 0 to 2 do
-      io.Dbp(Format('%6x', [faces.head.edge[i]]));
+      io.Dbp(Format('%6x', [Integer(faces.head.edge[i])]));
     io.Dbp('  vert:');
     for i := 0 to 2 do
       io.Dbp(Format('%4d', [faces.head.vertex[i].vnum]));
-    io.Dbp(Format('  vis: %d', [faces.head.visible]));
+    io.Dbp(Format('  vis: %d', [Ord(faces.head.visible)]));
     faces.head := faces.head.next;
   until faces.head = temp;
 end;
 
 procedure TDelaunayTri.PrintOut(v: tVertex);
 begin
-  io.Dbp(Format('Head vertex %d = %6x :', [v.vnum, v]));
+  io.Dbp(Format('Head vertex %d = %6x :', [v.vnum, Integer(v)]));
   PrintVertices;
   PrintEdges;
   PrintFaces;
@@ -1240,18 +1251,18 @@ end;
 procedure TDelaunayTri.PrintVertices;
 var
   temp: tVertex;
-  i: Integer;
 begin
   io.Dbp('Vertex List');
+  temp := vertices.head;
   if vertices.head <> nil then
   repeat
-    io.Dbp(Format('  addr %6x\t', [vertices.head]));
+    io.Dbp(Format('  addr %6x'#9, [Integer(vertices.head)]));
     io.Dbp(Format('  vnum %4d', [vertices.head.vnum]));
     io.Dbp(Format('   (%6d, %6d, %6d)',
       [vertices.head.v.x, vertices.head.v.y, vertices.head.v.z]));
-    io.Dbp(Format('   active:%3d', [vertices.head.onhull]));
-    io.Dbp(Format('   dup:%5x', [vertices.head.duplicate]));
-    io.Dbp(Format('   mark:%2d', [vertices.head.mark]));
+    io.Dbp(Format('   active:%3d', [Ord(vertices.head.onhull)]));
+    io.Dbp(Format('   dup:%5x', [Integer(vertices.head.duplicate)]));
+    io.Dbp(Format('   mark:%2d', [Ord(vertices.head.mark)]));
     vertices.head := vertices.head.next;
   until vertices.head = temp;
 end;

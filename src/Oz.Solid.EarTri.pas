@@ -129,9 +129,9 @@ type
     // MakeNullVertex: Makes a vertex.
     function MakeNullVertex: tVertex;
     procedure Add(var head: tVertex; p: tVertex);
+    procedure Init(const filename: string);
   public
     procedure Build(const filename: string);
-    procedure Init(const filename: string);
     procedure Free;
     // Prints out n-3 diagonals (as pairs of integer indices)
     // which form a triangulation of P.
