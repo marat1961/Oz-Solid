@@ -343,10 +343,10 @@ begin
 end;
 
 procedure TestDelaunayTri.TestTri;
-const
-  NMAX = 1001;
-type
-  TIntArray = array [0 .. NMAX - 1] of Integer;
+//const
+//  NMAX = 1001;
+//type
+//  TIntArray = array [0 .. NMAX - 1] of Integer;
 //var
 //  n, cnt: Integer;      // number of input points
 //  x, y, z: TIntArray;   // input points xy, z = x^2 + y^2

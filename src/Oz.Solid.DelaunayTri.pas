@@ -239,9 +239,9 @@ const
   REMOVED = True;
   VISIBLE = True;
   PROCESSED = True;
-  SAFE = 1000000;    // Range of safe coord values
+  SAFE = 1000000;    // Range of safe coordinate values
 
-procedure Swap(a, b: tEdge);
+procedure Swap(var a, b: tEdge);
 var
   temp: tEdge;
 begin
@@ -363,10 +363,9 @@ end;
 
 procedure TsvgIO.Print(vertices: tVertex; edges: tEdge; faces: tFace);
 var
-  // Pointers to vertices, edges, faces.
-  v: tVertex ;
-  e: tEdge;
-  f: tFace;
+  v: tVertex; // Pointers to vertices
+  e: tEdge;   // Pointers to edges
+  f: tFace;   // Pointers to faces
   Vc, Ec, Fc: Integer;
   nvertices: Integer;
 begin
@@ -374,12 +373,7 @@ begin
   Vc := 0; Ec := 0; Fc := 0;
   nvertices := CalcBounds(vertices);
 
-  // Svg header
-  // Format('%%not PS');
-  // Format('%%%%BoundingBox: %d %d %d %d', xmin, ymin, xmax, ymax);
-  // Format('.00 .00 setlinewidth');
-  // Format('%d %d translate', -xmin+100, -ymin+100 );
-  // The +72 shifts the figure one inch from the lower left corner
+  Dbp('BoundingBox: %d %d %d %d', [xmin, ymin, xmax, ymax]);
 
   // Vertices
   v := vertices;
@@ -387,8 +381,7 @@ begin
     if v.mark then Inc(Vc);
     v := v.next;
   until v = vertices;
-  // Format('\n%%%% Vertices:\tV = %d', Vc);
-  // Format('%%%% index:\tx\ty\tz');
+  Dbp('  Vertices: %d', [Vc]);
   repeat
     // printf( '%%%% %5d:\t%d\t%d\t%d', v.vnum, v.v.x, v.v.y, v.v.z );
     // Format('newpath');
@@ -404,8 +397,8 @@ begin
     Inc(Fc);
     f := f.next;
   until f = faces;
-  // Format('\n%%%% Faces:\tF = %d', Fc );
-  // Format('%%%% Visible faces only: ');
+  Dbp('  Faces: F = %d', [Fc]);
+  Dbp('  Visible faces only: ');
   repeat
     // Print face only if it is lower
     if f.lower then
@@ -440,6 +433,9 @@ begin
 
   check := True;
   CheckEuler(Vc, Ec, Fc);
+
+  svg.SaveToFile(filename + '.svg');
+  log.SaveToFile(filename + '.txt');
 end;
 
 procedure TsvgIO.CheckEuler(V, E, F: Integer);
@@ -585,7 +581,6 @@ procedure TDelaunayTri.DoubleTriangle;
 var
   v0, v1, v2, v3, t: tVertex;
   f0, f1: tFace;
-  e0, e1, e2, s: tEdge;
   vol: Integer;
 begin
   f1 := nil;
@@ -716,7 +711,6 @@ end;
 function TDelaunayTri.VolumeSign(f: tFace; p: tVertex): Integer;
 var
   vol: Double;
-  voli: Integer;
   ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz: Double;
   bxdx, bydy, bzdz, cxdx, cydy, czdz: Double;
 begin
@@ -743,7 +737,7 @@ begin
        + (ay - dy) * (bzdz * cxdx - bxdx * czdz)
        + (ax - dx) * (bydy * czdz - bzdz * cydy);
   if io.debug then
-    io.Dbp('Face=%x Vertex=%d vol=%d, vol=%f', [Integer(f), p.vnum, voli, vol]);
+    io.Dbp('Face=%x Vertex=%d vol=%f', [Integer(f), p.vnum, vol]);
 
   // The volume should be an integer.
   if vol > 0.5 then
@@ -756,10 +750,9 @@ end;
 
 function TDelaunayTri.Volumei(f: tFace; p: tVertex): Integer;
 var
-  i, vol: Integer;
+  vol: Integer;
   ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz: Integer;
   bxdx, bydy, bzdz, cxdx, cydy, czdz: Integer;
-  vold: Double;
 begin
   ax := f.vertex[0].v.x;
   ay := f.vertex[0].v.y;
@@ -915,21 +908,24 @@ begin
   Vc := 0; Ec := 0; Fc := 0;
   Consistency;
   Convexity;
-  if v = vertices.head then
-    repeat
-      if v.mark then Inc(Vc);
-      v := v.next;
-    until v = vertices.head;
-  if e = edges.head then
-    repeat
-      Inc(Ec);
-      e := e.next;
-    until e = edges.head;
-  if f = faces.head then
-    repeat
-      Inc(Fc);
-      f := f.next;
-    until f = faces.head;
+  v := vertices.head;
+  while v <> vertices.head do
+  begin
+    if v.mark then Inc(Vc);
+    v := v.next;
+  end;
+  e := edges.head;
+  while e <> edges.head do
+  begin
+    Inc(Ec);
+    e := e.next;
+  end;
+  f := faces.head;
+  while f <> faces.head do
+  begin
+    Inc(Fc);
+    f := f.next;
+  end;
   io.CheckEuler(Vc, Ec, Fc);
 end;
 
