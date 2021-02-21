@@ -133,7 +133,6 @@ type
     vertices: TVertexList;
     edges: TEdgeList;
     faces: TFaceList;
-//    xmin, ymin, xmax, ymax: Integer;
     // Volumed is the same as VolumeSign but computed with doubles.
     // For protection against overflow.
     function Volumed(f: tFace; p: tVertex): Double;
@@ -367,13 +366,16 @@ var
   e: tEdge;   // Pointers to edges
   f: tFace;   // Pointers to faces
   Vc, Ec, Fc: Integer;
-  nvertices: Integer;
+  width, height, nvertices: Integer;
 begin
   // Counters for Euler's formula.
   Vc := 0; Ec := 0; Fc := 0;
   nvertices := CalcBounds(vertices);
 
-  Dbp('BoundingBox: %d %d %d %d', [xmin, ymin, xmax, ymax]);
+  // ViewBox
+  width := xmax - xmin + 1;
+  height := xmax - xmin + 1;
+  svg.ViewBox(xmin, ymin, width, height);
 
   // Vertices
   v := vertices;
@@ -408,7 +410,8 @@ begin
       svg.Polygon
         .Point(f.vertex[0].v.x, f.vertex[0].v.y)
         .Point(f.vertex[1].v.x, f.vertex[1].v.y)
-        .Point(f.vertex[2].v.x, f.vertex[2].v.y);
+        .Point(f.vertex[2].v.x, f.vertex[2].v.y)
+        .Stroke('green').StrokeWidth(0.2);
     end;
     f := f.next;
   until f = faces;
