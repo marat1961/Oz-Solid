@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+<svg width="800" height="600" viewBox="-63 -94 151 151" xmlns="http://www.w3.org/2000/svg" version="1.1">
+<polygon points=" 31 -76 -63 -83 -5 -66" stroke="green" stroke-width="0.2"/>
+<polygon points=" -63 -83 31 -76 87 -94" stroke="green" stroke-width="0.2"/>
+<polygon points=" -13 21 40 71 23 -46" stroke="green" stroke-width="0.2"/>
+<polygon points=" 87 -94 31 -76 64 -80" stroke="green" stroke-width="0.2"/>
+<polygon points=" 40 71 87 -94 64 -80" stroke="green" stroke-width="0.2"/>
+<polygon points=" 31 -76 23 -46 64 -80" stroke="green" stroke-width="0.2"/>
+<polygon points=" 23 -46 40 71 64 -80" stroke="green" stroke-width="0.2"/>
+<polygon points=" 31 -76 -5 -66 0 -57" stroke="green" stroke-width="0.2"/>
+<polygon points=" -5 -66 -63 -83 0 -57" stroke="green" stroke-width="0.2"/>
+<polygon points=" 23 -46 31 -76 0 -57" stroke="green" stroke-width="0.2"/>
+<polygon points=" -63 -83 -13 21 -14 2" stroke="green" stroke-width="0.2"/>
+<polygon points=" -13 21 23 -46 -14 2" stroke="green" stroke-width="0.2"/>
+<polygon points=" 0 -57 -63 -83 -14 2" stroke="green" stroke-width="0.2"/>
+<polygon points=" 23 -46 0 -57 -14 2" stroke="green" stroke-width="0.2"/>
+</svg>
