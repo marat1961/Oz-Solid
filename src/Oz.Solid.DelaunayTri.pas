@@ -366,11 +366,11 @@ var
   e: tEdge;   // Pointers to edges
   f: tFace;   // Pointers to faces
   Vc, Ec, Fc: Integer;
-  width, height, nvertices: Integer;
+  width, height: Integer;
 begin
   // Counters for Euler's formula.
   Vc := 0; Ec := 0; Fc := 0;
-  nvertices := CalcBounds(vertices);
+  CalcBounds(vertices);
 
   // ViewBox
   width := xmax - xmin + 1;
@@ -510,6 +510,7 @@ end;
 destructor TDelaunayTri.Destroy;
 begin
   io.Free;
+  CleanUp;
   inherited;
 end;
 
@@ -582,7 +583,7 @@ end;
 
 procedure TDelaunayTri.DoubleTriangle;
 var
-  v0, v1, v2, v3, t: tVertex;
+  v0, v1, v2, v3: tVertex;
   f0, f1: tFace;
   vol: Integer;
 begin
@@ -638,7 +639,6 @@ end;
 procedure TDelaunayTri.ConstructHull;
 var
   v, vnext: tVertex ;
-  vol: Integer;
   changed: Boolean;  // T if addition changes hull; not used.
 begin
   v := vertices.head;

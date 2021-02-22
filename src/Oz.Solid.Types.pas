@@ -308,6 +308,7 @@ function IntersectSegments(const a, b, c, d: T2dPoint;
 // Return the intersection point of lines
 function IntersectLines(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
+function GetSignedArea(const points: TArray<T2dPoint>): Double;
 
 {$EndRegion}
 
@@ -414,6 +415,19 @@ begin
   cross.x := (d1 * cd.x - d2 * ab.x) / t;
   cross.y := (d1 * cd.y - d2 * ab.y) / t;
   Result := True;
+end;
+
+function GetSignedArea(const points: TArray<T2dPoint>): Double;
+var
+  i, n: Integer;
+  r: Double;
+begin
+  n := High(points);
+  if n < 1 then exit(0);
+  r := (points[0].X - points[n].X) * (points[0].Y + points[n].Y);
+  for i := 0 to n - 1 do
+    r := r + (points[i + 1].X - points[i].X) * (points[i + 1].Y + points[i].Y);
+  Result := r * 0.5;
 end;
 
 {$EndRegion}
