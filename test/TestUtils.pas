@@ -22,8 +22,8 @@ interface
 
 uses
   System.Classes, System.SysUtils, System.Math, TestFramework,
-  Oz.Solid.Types, Oz.Solid.Svg, Oz.Solid.VectorInt, Oz.Solid.Boolean,
-  Oz.Solid.EarTri, Oz.Solid.DelaunayTri;
+  Oz.Solid.Types, Oz.Solid.Intersect, Oz.Solid.Svg, Oz.Solid.VectorInt,
+  Oz.Solid.Boolean, Oz.Solid.EarTri, Oz.Solid.DelaunayTri;
 
 {$Region 'Test2dPoint'}
 

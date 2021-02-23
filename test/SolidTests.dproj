@@ -92,8 +92,9 @@
         <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Hash.pas"/>
         <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Heap.pas"/>
         <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Collections.pas"/>
-        <DCCReference Include="..\src\Oz.Solid.Types.pas"/>
         <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.HandleManager.pas"/>
+        <DCCReference Include="..\src\Oz.Solid.Types.pas"/>
+        <DCCReference Include="..\src\Oz.Solid.Intersect.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Boolean.pas"/>
         <DCCReference Include="..\src\Oz.Solid.VectorInt.pas"/>
         <DCCReference Include="..\src\Oz.Solid.EarTri.pas"/>
