@@ -29,68 +29,71 @@ uses
 {$T+}
 
 type
-  tVertex = ^tsVertex;
-  tFace = ^tsFace;
-  tEdge = ^tsEdge;
+  PVertex = ^TVertex;
+  PFace = ^TFace;
+  PEdge = ^TEdge;
 
   T3i = record
     x, y, z: Integer;
   end;
 
-{$Region 'tsVertex, tVertexHelper: vertices'}
+{$Region 'TVertex, tVertexHelper: vertices'}
 
-  tsVertex = record
+  TVertex = record
     v: T3i;
     vnum: Integer;
-    duplicate: tEdge;  // pointer to incident cone edge (or nil)
+    duplicate: PEdge;  // pointer to incident cone edge (or nil)
     onhull: Boolean;   // T iff point on hull.
     mark: Boolean;     // T iff point already processed.
-    next: tVertex;
-    prev: tVertex;
+    next: PVertex;
+    prev: PVertex;
   end;
 
   TVertexList = record
-    head: tVertex;
-    procedure Add(p: tVertex);
-    procedure Del(p: tVertex);
+    head: PVertex;
+    procedure Free;
+    procedure Add(p: PVertex);
+    procedure Del(p: PVertex);
   end;
 
 {$EndRegion}
 
-{$Region 'tsEdge, tEdgeHelper: edges'}
+{$Region 'TEdge, tEdgeHelper: edges'}
 
-  tsEdge = record
-    adjface: array [0..1] of tFace;
-    endpts: array [0..1] of tVertex;
-    newface: tFace;     // pointer to incident cone face.
+  TEdge = record
+    adjface: array [0..1] of PFace;
+    endpts: array [0..1] of PVertex;
+    newface: PFace;     // pointer to incident cone face.
     delete: Boolean;    // T iff edge should be delete.
-    next: tEdge;
-    prev: tEdge;
+    next: PEdge;
+    prev: PEdge;
   end;
 
   TEdgeList = record
-    head: tEdge;
-    procedure Add(p: tEdge);
-    procedure Del(p: tEdge);
+    head: PEdge;
+    procedure Free;
+    procedure Add(p: PEdge);
+    procedure Del(p: PEdge);
   end;
 
 {$EndRegion}
 
-{$Region 'tsFace, tFaceHelper: faces'}
+{$Region 'TFace, tFaceHelper: faces'}
 
-  tsFace = record
-    edge: array [0..2] of tEdge;
-    vertex: array [0..2] of tVertex;
+  TFace = record
+    edge: array [0..2] of PEdge;
+    vertex: array [0..2] of PVertex;
     visible: Boolean;   // T iff face visible from New point.
     lower: Boolean;     // T iff on the lower hull
-    next: tFace;
-    prev: tFace;
+    next: PFace;
+    prev: PFace;
   end;
 
   TFaceList = record
-    head: tFace;
-    procedure Add(p: tFace);
-    procedure Del(p: tFace);
+    head: PFace;
+    procedure Free;
+    procedure Add(p: PFace);
+    procedure Del(p: PFace);
   end;
 
 {$EndRegion}
@@ -104,7 +107,7 @@ type
     log: TStrings;
     xmin, ymin, xmax, ymax: Integer;
     // Compute bounding box for Encapsulated SVG.
-    function CalcBounds(vertices: tVertex): Integer;
+    function CalcBounds(vertices: PVertex): Integer;
   public
     debug: Boolean;
     check: Boolean;
@@ -112,7 +115,7 @@ type
     procedure Free;
     // Prints out the vertices and the faces. Uses the vnum indices
     // corresponding to the order in which the vertices were input.
-    procedure Print(vertices: tVertex; edges: tEdge; faces: tFace);
+    procedure Print(vertices: PVertex; edges: PEdge; faces: PFace);
     // CheckEuler checks Euler's relation, as well as its implications when
     // all faces are known to be triangles.  Only prints positive information
     // when debug is true, but always prints negative information.
@@ -135,14 +138,14 @@ type
     faces: TFaceList;
     // Volumed is the same as VolumeSign but computed with doubles.
     // For protection against overflow.
-    function Volumed(f: tFace; p: tVertex): Double;
-    function Volumei(f: tFace; p: tVertex): Integer;
+    function Volumed(f: PFace; p: PVertex): Double;
+    function Volumei(f: PFace; p: PVertex): Integer;
   public
     constructor Create(const filename: string);
     destructor Destroy; override;
     procedure Build;
     // MakeNullVertex: Makes a vertex, nulls out fields
-    function MakeNullVertex: tVertex;
+    function MakeNullVertex: PVertex;
     // Reads in the vertices, and links them into a circular
     // list with MakeNullVertex. There is no need for the # of vertices
     // to be the first line: the function looks for EOF instead.
@@ -165,31 +168,31 @@ type
     // onhull.  Next is a loop over edges.  If both faces adjacent to an edge
     // are visible, then the edge is marked for deletion.  If just one of the
     // adjacent faces is visible then a New face is constructed.
-    function AddOne(p: tVertex): Boolean;
+    function AddOne(p: PVertex): Boolean;
     // VolumeSign returns the sign of the volume of the tetrahedron determined by f
     // and p.  VolumeSign is +1 iff p is on the negative side of f,
     // where the positive side is determined by the rh-rule.  So the volume
     // is positive if the ccw normal to f points outside the tetrahedron.
     // The final fewer-multiplications form is due to Robert Fraczkiewicz.
-    function VolumeSign(f: tFace; p: tVertex): Integer;
+    function VolumeSign(f: PFace; p: PVertex): Integer;
     // MakeConeFace makes a New face and two New edges between the
     // edge and the point that are passed to it. It returns a pointer to
     // the New face.
-    function MakeConeFace(e: tEdge; p: tVertex): tFace;
+    function MakeConeFace(e: PEdge; p: PVertex): PFace;
     // MakeCcw puts the vertices in the face structure in counterclock wise
     // order. We want to store the vertices in the same
     // order as in the visible face.  The third vertex is always p.
-    procedure MakeCcw(f: tFace; e: tEdge; p: tVertex);
+    procedure MakeCcw(f: PFace; e: PEdge; p: PVertex);
     // MakeNullEdge creates a New cell and initializes all pointers to nil
     // and sets all flags to off.  It returns a pointer to the empty cell.
-    function MakeNullEdge: tEdge;
+    function MakeNullEdge: PEdge;
     // MakeNullFace creates a New face structure and initializes all of its
     // flags to nil and sets all the flags to off.  It returns a pointer
     // to the empty cell.
-    function MakeNullFace: tFace;
+    function MakeNullFace: PFace;
     // MakeFace creates a New face structure from three vertices
     // (in ccw order).  It returns a pointer to the face.
-    function MakeFace(v0, v1, v2: tVertex; fold: tFace): tFace;
+    function MakeFace(v0, v1, v2: PVertex; fold: PFace): PFace;
     // CleanUp goes through each data structure list and clears all
     // flags and NULLs out some pointers.  The order of processing
     // (edges, faces, vertices) is important.
@@ -206,10 +209,10 @@ type
     procedure CleanVertices;
     // Collinear checks to see if the three points given are collinear,
     // by checking to see if each element of the cross product is zero.
-    function Collinear(a, b, c: tVertex): Boolean;
+    function Collinear(a, b, c: PVertex): Boolean;
     // Computes the z-coordinate of the vector normal to face f.
-    function Normz(f: tFace): Integer;
-    procedure PrintPoint(p: tVertex);
+    function Normz(f: PFace): Integer;
+    procedure PrintPoint(p: PVertex);
     procedure Checks;
     // Consistency runs through the edge list and checks that all
     // adjacent faces have their endpoints in opposite order.
@@ -221,7 +224,7 @@ type
     procedure Convexity;
     // These functions are used whenever the debug flag is set.
     // They print out the entire contents of each data structure.
-    procedure PrintOut(v: tVertex);
+    procedure PrintOut(v: PVertex);
     procedure PrintVertices;
     procedure PrintEdges;
     procedure PrintFaces;
@@ -240,9 +243,9 @@ const
   PROCESSED = True;
   SAFE = 1000000;    // Range of safe coordinate values
 
-procedure Swap(var a, b: tEdge);
+procedure Swap(var a, b: PEdge);
 var
-  temp: tEdge;
+  temp: PEdge;
 begin
   temp := a;
   a := b;
@@ -251,7 +254,12 @@ end;
 
 {$Region 'TVertexList'}
 
-procedure TVertexList.Add(p: tVertex);
+procedure TVertexList.Free;
+begin
+  while head <> nil do Del(head);
+end;
+
+procedure TVertexList.Add(p: PVertex);
 begin
   if head <> nil then
   begin
@@ -268,7 +276,7 @@ begin
   end;
 end;
 
-procedure TVertexList.Del(p: tVertex);
+procedure TVertexList.Del(p: PVertex);
 begin
   if head = head.next then
     head := nil
@@ -283,7 +291,12 @@ end;
 
 {$Region 'TEdgeList'}
 
-procedure TEdgeList.Add(p: tEdge);
+procedure TEdgeList.Free;
+begin
+  while head <> nil do Del(head);
+end;
+
+procedure TEdgeList.Add(p: PEdge);
 begin
   if head <> nil then
   begin
@@ -300,7 +313,7 @@ begin
   end;
 end;
 
-procedure TEdgeList.Del(p: tEdge);
+procedure TEdgeList.Del(p: PEdge);
 begin
   if head = head.next then
     head := nil
@@ -315,7 +328,12 @@ end;
 
 {$Region 'TFaceList'}
 
-procedure TFaceList.Add(p: tFace);
+procedure TFaceList.Free;
+begin
+  while head <> nil do Del(head);
+end;
+
+procedure TFaceList.Add(p: PFace);
 begin
   if head <> nil then
   begin
@@ -332,7 +350,7 @@ begin
   end;
 end;
 
-procedure TFaceList.Del(p: tFace);
+procedure TFaceList.Del(p: PFace);
 begin
   if head = head.next then
     head := nil
@@ -360,11 +378,11 @@ begin
   FreeAndNil(log);
 end;
 
-procedure TsvgIO.Print(vertices: tVertex; edges: tEdge; faces: tFace);
+procedure TsvgIO.Print(vertices: PVertex; edges: PEdge; faces: PFace);
 var
-  v: tVertex; // Pointers to vertices
-  e: tEdge;   // Pointers to edges
-  f: tFace;   // Pointers to faces
+  v: PVertex; // Pointers to vertices
+  e: PEdge;   // Pointers to edges
+  f: PFace;   // Pointers to faces
   Vc, Ec, Fc: Integer;
   width, height: Integer;
 begin
@@ -459,9 +477,9 @@ begin
     Dbp('2 * E = 3 * F');
 end;
 
-function TsvgIO.CalcBounds(vertices: tVertex): Integer;
+function TsvgIO.CalcBounds(vertices: PVertex): Integer;
 var
-  v: tVertex;
+  v: PVertex;
 begin
   Result := 0;
   v := vertices;
@@ -510,7 +528,9 @@ end;
 destructor TDelaunayTri.Destroy;
 begin
   io.Free;
-  CleanUp;
+  faces.Free;
+  edges.Free;
+  vertices.Free;
   inherited;
 end;
 
@@ -522,9 +542,9 @@ begin
   io.Print(vertices.head, edges.head, faces.head);
 end;
 
-function TDelaunayTri.MakeNullVertex: tVertex;
+function TDelaunayTri.MakeNullVertex: PVertex;
 var
-  v: tVertex;
+  v: PVertex;
 begin
   New(v);
   v.duplicate := nil;
@@ -536,7 +556,7 @@ end;
 
 function TDelaunayTri.ReadVertices(const filename: string): Integer;
 var
-  v: tVertex;
+  v: PVertex;
   i, x, y, z, vnum: Integer;
   str: TStrings;
   line: string;
@@ -583,8 +603,8 @@ end;
 
 procedure TDelaunayTri.DoubleTriangle;
 var
-  v0, v1, v2, v3: tVertex;
-  f0, f1: tFace;
+  v0, v1, v2, v3: PVertex;
+  f0, f1: PFace;
   vol: Integer;
 begin
   f1 := nil;
@@ -638,7 +658,7 @@ end;
 
 procedure TDelaunayTri.ConstructHull;
 var
-  v, vnext: tVertex ;
+  v, vnext: PVertex ;
   changed: Boolean;  // T if addition changes hull; not used.
 begin
   v := vertices.head;
@@ -660,10 +680,10 @@ begin
   until v = vertices.head;
 end;
 
-function TDelaunayTri.AddOne(p: tVertex): Boolean;
+function TDelaunayTri.AddOne(p: PVertex): Boolean;
 var
-  f: tFace;
-  e, temp: tEdge;
+  f: PFace;
+  e, temp: PEdge;
   vol: Integer;
   vis: Boolean;
 begin
@@ -711,7 +731,7 @@ begin
   Result := True;
 end;
 
-function TDelaunayTri.VolumeSign(f: tFace; p: tVertex): Integer;
+function TDelaunayTri.VolumeSign(f: PFace; p: PVertex): Integer;
 var
   vol: Double;
   ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz: Double;
@@ -751,7 +771,7 @@ begin
     Result := 0;
 end;
 
-function TDelaunayTri.Volumei(f: tFace; p: tVertex): Integer;
+function TDelaunayTri.Volumei(f: PFace; p: PVertex): Integer;
 var
   vol: Integer;
   ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz: Integer;
@@ -783,7 +803,7 @@ begin
   Result := vol;
 end;
 
-function TDelaunayTri.Volumed(f: tFace; p: tVertex): Double;
+function TDelaunayTri.Volumed(f: PFace; p: PVertex): Double;
 var
   vol, ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz: Double;
   bxdx, bydy, bzdz, cxdx, cydy, czdz: Double;
@@ -814,11 +834,11 @@ begin
   Result := vol;
 end;
 
-function TDelaunayTri.MakeConeFace(e: tEdge; p: tVertex): tFace;
+function TDelaunayTri.MakeConeFace(e: PEdge; p: PVertex): PFace;
 var
   i, j: Integer;
-  new_edge: array [0..1] of tEdge;
-  new_face: tFace;
+  new_edge: array [0..1] of PEdge;
+  new_face: PFace;
 begin
   // Make two New edges (if don't already exist).
   for i := 0 to 1 do
@@ -855,9 +875,9 @@ begin
   Result := new_face;
 end;
 
-procedure TDelaunayTri.MakeCcw(f: tFace; e: tEdge; p: tVertex);
+procedure TDelaunayTri.MakeCcw(f: PFace; e: PEdge; p: PVertex);
 var
-  fv: tFace;  // The visible face adjacent to e
+  fv: PFace;  // The visible face adjacent to e
   i: Integer; // Index of e.endpoint[0] in fv.
 begin
   if e.adjface[0].visible then
@@ -886,9 +906,9 @@ begin
   f.vertex[2] := p;
 end;
 
-function TDelaunayTri.MakeNullEdge: tEdge;
+function TDelaunayTri.MakeNullEdge: PEdge;
 var
-  e: tEdge;
+  e: PEdge;
 begin
   New(e);
   e.adjface[0] := nil;
@@ -903,9 +923,9 @@ end;
 
 procedure TDelaunayTri.Checks;
 var
-  v: tVertex;
-  e: tEdge;
-  f: tFace;
+  v: PVertex;
+  e: PEdge;
+  f: PFace;
   Vc, Ec, Fc: Integer;
 begin
   Vc := 0; Ec := 0; Fc := 0;
@@ -934,8 +954,8 @@ end;
 
 procedure TDelaunayTri.CleanEdges;
 var
-  e: tEdge;  // Primary index into edge list.
-  t: tEdge;  // Temporary edge pointer.
+  e: PEdge;  // Primary index into edge list.
+  t: PEdge;  // Temporary edge pointer.
 begin
   // Integrate the newface's into the data structure.
   // Check every edge.
@@ -973,8 +993,8 @@ end;
 
 procedure TDelaunayTri.CleanFaces;
 var
-  f: tFace;  // Primary pointer into face list.
-  t: tFace;  // Temporary pointer, for deleting.
+  f: PFace;  // Primary pointer into face list.
+  t: PFace;  // Temporary pointer, for deleting.
 begin
   while (faces.head <> nil) and faces.head.visible do
   begin
@@ -1003,8 +1023,8 @@ end;
 
 procedure TDelaunayTri.CleanVertices;
 var
-  e: tEdge;
-  v, t: tVertex;
+  e: PEdge;
+  v, t: PVertex;
 begin
   // Mark all vertices incident to some undeleted edge as on the hull.
   e := edges.head;
@@ -1041,7 +1061,7 @@ begin
   until v = vertices.head;
 end;
 
-function TDelaunayTri.Collinear(a, b, c: tVertex): Boolean;
+function TDelaunayTri.Collinear(a, b, c: PVertex): Boolean;
 begin
   Result :=
     ((c.v.z - a.v.z) * (b.v.y - a.v.y) -
@@ -1054,7 +1074,7 @@ end;
 
 procedure TDelaunayTri.Consistency;
 var
-  e: tEdge;
+  e: PEdge;
   i, j: Integer;
 begin
   e := edges.head;
@@ -1079,8 +1099,8 @@ end;
 
 procedure TDelaunayTri.Convexity;
 var
-  f: tFace;
-  v: tVertex;
+  f: PFace;
+  v: PVertex;
   vol: Integer;
 begin
   f := faces.head;
@@ -1106,7 +1126,7 @@ end;
 
 procedure TDelaunayTri.LowerFaces;
 var
-  f: tFace;
+  f: PFace;
   Flower, z: Integer; // Total number of lower faces.
 begin
   f := faces.head;
@@ -1127,10 +1147,10 @@ begin
    io.Dbp(Format('A total of %d lower faces identified.', [Flower]));
 end;
 
-function TDelaunayTri.MakeFace(v0, v1, v2: tVertex; fold: tFace): tFace;
+function TDelaunayTri.MakeFace(v0, v1, v2: PVertex; fold: PFace): PFace;
 var
-  f: tFace;
-  e0, e1, e2: tEdge;
+  f: PFace;
+  e0, e1, e2: PEdge;
 begin
   // Create edges of the initial triangle.
   if fold = nil then
@@ -1163,9 +1183,9 @@ begin
   Result := f;
 end;
 
-function TDelaunayTri.MakeNullFace: tFace;
+function TDelaunayTri.MakeNullFace: PFace;
 var
-  f: tFace;
+  f: PFace;
   i: Integer;
 begin
   New(f);
@@ -1179,9 +1199,9 @@ begin
   Result := f;
 end;
 
-function TDelaunayTri.Normz(f: tFace): Integer;
+function TDelaunayTri.Normz(f: PFace): Integer;
 var
-  a, b, c: tVertex;
+  a, b, c: PVertex;
 begin
   a := f.vertex[0];
   b := f.vertex[1];
@@ -1193,7 +1213,7 @@ end;
 
 procedure TDelaunayTri.PrintEdges;
 var
-  temp: tEdge;
+  temp: PEdge;
   i: Integer;
 begin
   temp := edges.head;
@@ -1214,7 +1234,7 @@ end;
 
 procedure TDelaunayTri.PrintFaces;
 var
-  temp: tFace;
+  temp: PFace;
   i: Integer;
 begin
   temp := faces.head;
@@ -1233,7 +1253,7 @@ begin
   until faces.head = temp;
 end;
 
-procedure TDelaunayTri.PrintOut(v: tVertex);
+procedure TDelaunayTri.PrintOut(v: PVertex);
 begin
   io.Dbp(Format('Head vertex %d = %6x :', [v.vnum, Integer(v)]));
   PrintVertices;
@@ -1241,7 +1261,7 @@ begin
   PrintFaces;
 end;
 
-procedure TDelaunayTri.PrintPoint(p: tVertex);
+procedure TDelaunayTri.PrintPoint(p: PVertex);
 begin
   io.Dbp(Format(#9'%d', [p.v.x, p.v.y, p.v.z]));
   io.Dbp('');
@@ -1249,7 +1269,7 @@ end;
 
 procedure TDelaunayTri.PrintVertices;
 var
-  temp: tVertex;
+  temp: PVertex;
 begin
   io.Dbp('Vertex List');
   temp := vertices.head;
