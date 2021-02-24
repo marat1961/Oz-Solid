@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this file. If not, see <https://www.gnu.org/licenses/>.
  *)
+
 unit Oz.Solid.Polygon;
 
 interface
@@ -22,8 +23,7 @@ interface
 {$Region 'Uses'}
 
 uses
-  Oz.SGL.Collections,
-  Oz.Solid.Types;
+  System.Classes, System.SysUtils, Oz.Solid.VectorInt, Oz.Solid.Svg;
 
 {$EndRegion}
 
@@ -50,9 +50,30 @@ type
 
 {$EndRegion}
 
+{$Region 'TsvgIO'}
+
+  TsvgIO = record
+  strict private
+    filename: string;
+    svg: TsvgBuilder;
+    log: TStrings;
+    xmin, ymin, xmax, ymax: Integer;
+  public
+    procedure Init(const filename: string);
+    procedure Free;
+    // Prints svg and log
+    procedure PrintAll;
+    // Debug print
+    procedure Dbp; overload;
+    procedure Dbp(const line: string); overload;
+    procedure Dbp(const fs: string; const args: array of const); overload;
+  end;
+
+{$EndRegion}
+
 procedure ClosePostscript();
 procedure PrintSharedSeg(p, q: tPointd);
-function Dot(a, b: tPointi): double;
+function Dot(a, b: tPointi): Double;
 function AreaSign(a, b, c: tPointi): Integer;
 function SegSegInt(a, b, c, d: tPointi; p, q: tPointd): char;
 function ParallelInt(a, b, c, d: tPointi; p, q: tPointd): char;
@@ -77,15 +98,19 @@ implementation
 
 procedure ClosePostscript();
 begin
-
+//  printf("closepath stroke\n");
+//  printf("showpage\n%%%%EOF\n");
 end;
 
 procedure PrintSharedSeg(p, q: tPointd);
 begin
-
+//  printf("%%A int B:\n");
+//  printf("%8.2lf %8.2lf moveto\n", p[X], p[Y] );
+//  printf("%8.2lf %8.2lf lineto\n", q[X], q[Y] );
+//  ClosePostscript();
 end;
 
-function Dot(a, b: tPointi): double;
+function Dot(a, b: tPointi): Double;
 begin
 
 end;
@@ -143,7 +168,7 @@ var
   cross: Integer;      // sign of z-component of A x B
   bHA, aHB: Integer;   // b in H(A); a in H(b).
   Origin: tPointi;
-  p_: tPointd;         // double point of intersection
+  p_: tPointd;         // Double point of intersection
   q_: tPointd;         // second point of intersection
   inflag: tInFlag;     // {Pin, Qin, Unknown}: which inside
   aa, ba: Integer;     // # advances on a & b indices (after 1st inter.)
@@ -192,25 +217,25 @@ begin
     // Advance rule
 
     // Special case: A_ & B_ overlap and oppositely oriented.
-    if (code = 'e' ) and (Dot( A_, B_ ) < 0) then
+    if (code = 'e' ) and (Dot(A_, B_) < 0) then
       PrintSharedSeg( p_, q_ ), exit(EXIT_SUCCESS);
 
     // Special case: A_ & B_ parallel and separated.
-    if (cross = 0) and ( aHB < 0) and ( bHA < 0 ) then
+    if (cross = 0) and (aHB < 0) and (bHA < 0) then
     begin
       Dbp('%%P and Q are disjoint.\n');
       exit(EXIT_SUCCESS);
     end
-    // Special case: A_ & B_ collinear. */
+    // Special case: A_ & B_ collinear.
     else if (cross = 0) and ( aHB = 0) and (bHA = 0) then
     begin
-      // Advance but do not output point. */
+      // Advance but do not output point.
       if inflag = Pin then
         b := Advance(b, @ba, m, inflag = Qin, Q[b])
       else
         a := Advance(a, @aa, n, inflag = Pin, P[a]);
    end
-   // Generic cases. */
+   // Generic cases.
    else if cross >= 0 then
    begin
      if bHA > 0 then
@@ -218,11 +243,12 @@ begin
      else
        b := Advance( b, &ba, m, inflag = Qin, Q[b]);
     end;
-    else // if ( cross < 0 ) */begin
-       if ( aHB > 0)
-          b = Advance( b, &ba, m, inflag = Qin, Q[b] );
-       else
-          a = Advance( a, &aa, n, inflag = Pin, P[a] );
+    else // if ( cross < 0 )
+    begin
+      if aHB > 0 then
+        b := Advance(b, &ba, m, inflag = Qin, Q[b])
+      else
+        a := Advance(a, &aa, n, inflag = Pin, P[a]);
     end;
     Dbp('%%After advances:a=%d, b=%d; aa=%d, ba=%d; inflag=%d\n', a, b, aa, ba, inflag);
 
