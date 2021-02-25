@@ -106,7 +106,56 @@ type
 
 implementation
 
-{$Region ''}
+{$Region 'TsvgIO'}
+
+procedure TsvgIO.Init(const filename: string);
+begin
+  Self.filename := filename;
+  svg := TsvgBuilder.Create(800, 600);
+  log := TStringList.Create;
+end;
+
+procedure TsvgIO.Free;
+begin
+  FreeAndNil(svg);
+  FreeAndNil(log);
+end;
+
+procedure TsvgIO.PrintAll;
+begin
+  svg.SaveToFile(filename + '.svg');
+  log.SaveToFile(filename + '.txt');
+end;
+
+procedure TsvgIO.Dbp;
+begin
+  log.Add('');
+end;
+
+procedure TsvgIO.Dbp(const line: string);
+begin
+  log.Add(line);
+end;
+
+procedure TsvgIO.Dbp(const fs: string; const args: array of const);
+begin
+  log.Add(Format(fs, args));
+end;
+
+{$EndRegion}
+
+{$Region 'TPolyBuilder'}
+
+procedure TPolyBuilder.From(const filename: string);
+begin
+  io.Init(filename);
+
+end;
+
+procedure TPolyBuilder.Free;
+begin
+  io.Free;
+end;
 
 procedure TPolyBuilder.ClosePostscript();
 begin
@@ -279,6 +328,22 @@ begin
   // Deal with special cases: not implemented.
   if inflag = Unknown then
     io.Dbp('%%The boundaries of P and Q do not cross.');
+end;
+
+function TPolyBuilder.InOut(p: tPointd; inflag: tInFlag; aHB, bHA: Integer): tInFlag;
+begin
+
+end;
+
+function TPolyBuilder.Advance(a: Integer; var aa: Integer;
+  n: Integer; inside: Boolean; v: tPointi): Integer;
+begin
+
+end;
+
+procedure TPolyBuilder.OutputPolygons();
+begin
+
 end;
 
 {$EndRegion}

@@ -356,7 +356,7 @@ end;
 
 procedure TEarTri.Free;
 begin
-   io.Free;
+  io.Free;
 end;
 
 function TEarTri.Diagonalie(a, b: tVertex): Boolean;
