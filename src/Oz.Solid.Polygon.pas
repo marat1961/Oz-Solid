@@ -78,6 +78,8 @@ type
   TPolyBuilder = record
   private
     io: TsvgIO;
+    n, m: Integer;
+    P, Q: tPolygoni;
     procedure ClosePostscript();
     procedure PrintSharedSeg(p, q: tPointd);
     function Dot(a, b: tPointi): Double;
@@ -95,8 +97,10 @@ type
     function Advance(a: Integer; var aa: Integer;
       n: Integer; inside: Boolean; v: tPointi): Integer;
     procedure OutputPolygons();
+    function ReadPoly(const filename: string; P: tPolygoni): Integer;
   public
     procedure From(const filename: string);
+    procedure Build;
     procedure Free;
     // P has n vertices, Q has m vertices.
     function ConvexIntersect(P, Q: tPolygoni; n, m: Integer): Integer;
@@ -149,7 +153,8 @@ end;
 procedure TPolyBuilder.From(const filename: string);
 begin
   io.Init(filename);
-
+  n := ReadPoly(filename, P);
+  m := ReadPoly(filename, Q);
 end;
 
 procedure TPolyBuilder.Free;
@@ -157,7 +162,48 @@ begin
   io.Free;
 end;
 
-procedure TPolyBuilder.ClosePostscript();
+procedure TPolyBuilder.Build;
+begin
+  OutputPolygons;
+  ConvexIntersect(P, Q, n, m);
+  ClosePostscript;
+end;
+
+function TPolyBuilder.ReadPoly(const filename: string; P: tPolygoni): Integer;
+var
+  i, n, nin: Integer;
+  str: TStrings;
+begin
+  str := TStringList.Create;
+  try
+    n := 0;
+    str.LoadFromFile(filename);
+    for i := 1 to str.Count - 1 do
+    begin
+      // scanf("%d", &nin);
+      // printf("%%Polygon:\n");
+      // printf("%%  i   x   y\n");
+
+      //    while (n < nin) and (scanf("%d %d",&P[n][0],&P[n][1]) != EOF) do
+      //    begin
+      //      // printf("%%%3d%4d%4d\n", n, P[n][0], P[n][1]);
+      //      Inc(n);
+      //    end;
+  (*
+     if (n < PMAX)
+        printf("%%n = %3d vertices read\n",n);
+     else
+       printf("Error in read_poly:  too many points; max is %d\n", PMAX);
+     putchar('\n');
+  *)
+    end;
+  finally
+    str.Free;
+  end;
+  Result := n;
+end;
+
+procedure TPolyBuilder.ClosePostscript;
 begin
 //  printf("closepath stroke\n");
 //  printf("showpage\n%%%%EOF\n");
