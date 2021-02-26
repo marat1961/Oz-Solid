@@ -403,10 +403,6 @@ begin
   until v = vertices;
   Dbp('  Vertices: %d', [Vc]);
   repeat
-    // printf( '%%%% %5d:\t%d\t%d\t%d', v.vnum, v.v.x, v.v.y, v.v.z );
-    // Format('newpath');
-    // Format('%d\t%d 2 0 360 arc', v.v.x, v.v.y);
-    // Format('closepath stroke\n');
     v := v.next;
   until v = vertices;
 
