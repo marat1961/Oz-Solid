@@ -80,11 +80,22 @@ type
 
     function Dot(a, b: T2i): Double;
     function AreaSign(a, b, c: T2i): Integer;
+    // SegSegInt: Finds the point of intersection p between two closed
+    // segments ab and cd.  Returns p and a char with the following meaning:
+    //   'e': The segments collinearly overlap, sharing a point.
+    //   'v': An endpoint (vertex) of one segment is on the other segment,
+    //        but 'e' doesn't hold.
+    //   '1': The segments intersect properly (i.e., they share a point and
+    //        neither 'v' nor 'e' holds).
+    //   '0': The segments do not intersect (i.e., they share no points).
+    //  Note that two collinear segments that share just one point, an endpoint
+    //  of each, returns 'e' rather than 'v' as one might expect.
     function SegSegInt(a, b, c, d: T2i; p, q: tPointd): Char;
     function ParallelInt(a, b, c, d: T2i; p, q: tPointd): Char;
     function Between(a, b, c: T2i): Boolean;
+
     procedure Assigndi(p: tPointd; a: T2i);
-    procedure SubVec(a, b, c: T2i);
+    procedure SubVec(const a, b:  T2i; var c: T2i);
     function LeftOn(a, b, c: T2i): Boolean;
     function Left(a, b, c: T2i): Boolean;
     procedure PrintPoly(n: Integer; P: tPolygoni);
@@ -204,16 +215,16 @@ end;
 
 procedure TPolyBuilder.ClosePostscript;
 begin
-//  printf("closepath stroke\n");
-//  printf("showpage\n%%%%EOF\n");
+  //  Dbp('closepath stroke\n');
+  //  Dbp('showpage\n%%%%EOF\n');
 end;
 
 procedure TPolyBuilder.PrintSharedSeg(p, q: tPointd);
 begin
-//  printf("%%A int B:\n");
-//  printf("%8.2lf %8.2lf moveto\n", p.x, p.y );
-//  printf("%8.2lf %8.2lf lineto\n", q.x, q.y );
-//  ClosePostscript();
+  //  Dbp('%%A int B:\n');
+  //  Dbp('%8.2lf %8.2lf moveto\n', p.x, p.y );
+  //  Dbp('%8.2lf %8.2lf lineto\n', q.x, q.y );
+  //  ClosePostscript();
 end;
 
 function TPolyBuilder.Dot(a, b: T2i): Double;
@@ -227,8 +238,47 @@ begin
 end;
 
 function TPolyBuilder.SegSegInt(a, b, c, d: T2i; p, q: tPointd): Char;
+var
+  s, t: double;       // The two parameters of the parametric eqns.
+  num, denom: double; // Numerator and denoninator of equations.
+  code: char;         // Return char characterizing intersection.
 begin
+  code := '?';
+  // Dbp('%%SegSegInt: a,b,c,d: (%d,%d), (%d,%d), (%d,%d), (%d,%d)'
+  // a.x,a.y, b.x,b.y, c.x,c.y, d.x,d.y);*/
+  denom := a.x * double(d.y - c.y) +
+           b.x * double(c.y - d.y) +
+           d.x * double(b.y - a.y) +
+           c.x * double(a.y - b.y);
 
+   // If denom is zero, then segments are parallel: handle separately.
+   if denom = 0.0 then
+     Result :=  ParallelInt(a, b, c, d, p, q);
+
+   num := a.x * double(d.y - c.y) +
+          c.x * double(a.y - d.y) +
+          d.x * double(c.y - a.y);
+   if (num = 0.0) or (num = denom) then
+     code := 'v';
+   s := num / denom;
+   // Dbp('num=%lf, denom=%lf, s=%lf\n' num, denom, s);
+
+   num := -(a.x * double(c.y - b.y) +
+            b.x * double(a.y - c.y) +
+            c.x * double(b.y - a.y) );
+   if (num = 0.0) or (num = denom) then code := 'v';
+   t := num / denom;
+   // Dbp('num=%lf, denom=%lf, t=%lf' num, denom, t);
+
+   if (0.0 < s) and (s < 1.0) and (0.0 < t) and (t < 1.0) then
+     code := '1'
+   else if (0.0 > s) or (s > 1.0) or (0.0 > t) or (t > 1.0) then
+     code := '0';
+
+   p.x := a.x + s * (b.x - a.x);
+   p.y := a.y + s * (b.y - a.y);
+
+   Result := code;
 end;
 
 function TPolyBuilder.ParallelInt(a, b, c, d: T2i; p, q: tPointd): Char;
@@ -246,24 +296,29 @@ begin
 
 end;
 
-procedure TPolyBuilder.SubVec(a, b, c: T2i);
+procedure TPolyBuilder.SubVec(const a, b:  T2i; var c: T2i);
 begin
-
+  c := a.Minus(b);
 end;
 
 function TPolyBuilder.LeftOn(a, b, c: T2i): Boolean;
 begin
-
+  Result := AreaSign(a, b, c) >= 0;
 end;
 
 function TPolyBuilder.Left(a, b, c: T2i): Boolean;
 begin
-
+  Result := AreaSign(a, b, c) > 0;
 end;
 
 procedure TPolyBuilder.PrintPoly(n: Integer; P: tPolygoni);
+var
+  i: Integer;
 begin
-
+   io.Dbp('Polygon:\n');
+   io.Dbp('  i   l   x   y');
+   for i := 0 to High(P) do
+     io.Dbp('%3d%4d%4d%4d', [i, P[i].x, P[i].y]);
 end;
 
 function TPolyBuilder.ConvexIntersect(P, Q: tPolygoni; n, m: Integer): Integer;
