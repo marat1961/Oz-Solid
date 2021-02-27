@@ -93,6 +93,7 @@ type
     function SegSegInt(a, b, c, d: T2i; p, q: tPointd): Char;
     function ParallelInt(a, b, c, d: T2i; p, q: tPointd): Char;
     function Between(a, b, c: T2i): Boolean;
+    function Collinear(a, b, c: T2i): Boolean;
 
     procedure Assigndi(p: tPointd; a: T2i);
     procedure SubVec(const a, b:  T2i; var c: T2i);
@@ -283,7 +284,54 @@ end;
 
 function TPolyBuilder.ParallelInt(a, b, c, d: T2i; p, q: tPointd): Char;
 begin
+  // printf("ParallelInt: a,b,c,d: (%d,%d), (%d,%d), (%d,%d), (%d,%d)\n",
+  // a[X],a[Y], b[X],b[Y], c[X],c[Y], d[X],d[Y]);
+  if  not Collinear(a, b, c) then
+    Result :=  '0';
 
+  if Between(a, b, c) and Between(a, b, d) then
+  begin
+    Assigndi(p, c);
+    Assigndi(q, d);
+    Result := 'e';
+  end
+  else if Between(c, d, a) and Between(c, d, b) then
+  begin
+    Assigndi(p, a);
+    Assigndi(q, b);
+    Result := 'e';
+  end
+  else if Between(a, b, c) and Between(c, d, b) then
+  begin
+    Assigndi(p, c);
+    Assigndi(q, b);
+    Result := 'e';
+  end
+  else if Between(a, b, c) and Between(c, d, a) then
+  begin
+    Assigndi(p, c);
+    Assigndi(q, a);
+    Result := 'e';
+  end
+  else if Between(a, b, d) and Between(c, d, b) then
+  begin
+    Assigndi(p, d);
+    Assigndi(q, b);
+    Result := 'e';
+  end
+  else if Between(a, b, d) and Between(c, d, a) then
+  begin
+    Assigndi(p, d);
+    Assigndi(q, a);
+    Result := 'e';
+  end
+  else
+    Result := '0';
+end;
+
+function TPolyBuilder.Collinear(a, b, c: T2i): Boolean;
+begin
+  Result := AreaSign(a, b, c) = 0;
 end;
 
 function TPolyBuilder.Between(a, b, c: T2i): Boolean;
