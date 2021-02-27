@@ -99,7 +99,7 @@ type
 
     function Collinear(a, b, c: T2i): Boolean;
 
-    procedure Assigndi(p: tPointd; a: T2i);
+    procedure Assigndi(var p: tPointd; const a: T2i);
     procedure SubVec(const a, b:  T2i; var c: T2i);
     function LeftOn(a, b, c: T2i): Boolean;
     function Left(a, b, c: T2i): Boolean;
@@ -234,12 +234,22 @@ end;
 
 function TPolyBuilder.Dot(a, b: T2i): Double;
 begin
-
+  Result := a.Dot(b);
 end;
 
 function TPolyBuilder.AreaSign(a, b, c: T2i): Integer;
+var
+  area2: double;
 begin
-
+  area2 := (b.x - a.x ) * double(c.y - a.y) -
+           (c.x - a.x ) * double(b.y - a.y);
+  // The area should be an integer.
+  if area2 > 0.5 then
+    Result := 1
+  else if area2 < -0.5 then
+    Result := -1
+  else
+    Result := 0;
 end;
 
 function TPolyBuilder.SegSegInt(a, b, c, d: T2i; p, q: tPointd): Char;
@@ -503,7 +513,15 @@ end;
 
 function TPolyBuilder.InOut(p: tPointd; inflag: tInFlag; aHB, bHA: Integer): tInFlag;
 begin
-
+  io.Dbp('%8.2lf %8.2lf lineto', [p.x, p.y]);
+  // Update inflag.
+  if aHB > 0 then
+    Result := Pin
+  else if bHA > 0 then
+    Result := Qin
+  else
+    // Keep status quo.
+    Result := inflag;
 end;
 
 procedure TPolyBuilder.OutputPolygons;
