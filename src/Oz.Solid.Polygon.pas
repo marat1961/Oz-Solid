@@ -91,8 +91,12 @@ type
     //  Note that two collinear segments that share just one point, an endpoint
     //  of each, returns 'e' rather than 'v' as one might expect.
     function SegSegInt(a, b, c, d: T2i; p, q: tPointd): Char;
+    //
     function ParallelInt(a, b, c, d: T2i; p, q: tPointd): Char;
+    // Returns TRUE iff point c lies on the closed segement ab.
+    // Assumes it is already known that abc are collinear.
     function Between(a, b, c: T2i): Boolean;
+
     function Collinear(a, b, c: T2i): Boolean;
 
     procedure Assigndi(p: tPointd; a: T2i);
@@ -285,7 +289,7 @@ end;
 function TPolyBuilder.ParallelInt(a, b, c, d: T2i; p, q: tPointd): Char;
 begin
   // printf("ParallelInt: a,b,c,d: (%d,%d), (%d,%d), (%d,%d), (%d,%d)\n",
-  // a[X],a[Y], b[X],b[Y], c[X],c[Y], d[X],d[Y]);
+  // a.x,a.y, b.x,b.y, c.x,c.y, d.x,d.y);
   if  not Collinear(a, b, c) then
     Result :=  '0';
 
@@ -335,13 +339,22 @@ begin
 end;
 
 function TPolyBuilder.Between(a, b, c: T2i): Boolean;
+var
+  ba, ca: T2i;
 begin
-
+  // If ab not vertical, check betweenness on x; else on y.
+  if a.x <> b.x then
+    Result := ((a.x <= c.x) and (c.x <= b.x)) or
+              ((a.x >= c.x) and (c.x >= b.x))
+  else
+     Result := ((a.y <= c.y) and (c.y <= b.y)) or
+               ((a.y >= c.y) and (c.y >= b.y));
 end;
 
-procedure TPolyBuilder.Assigndi(p: tPointd; a: T2i);
+procedure TPolyBuilder.Assigndi(var p: tPointd; const a: T2i);
 begin
-
+  p.x := a.x;
+  p.y := a.y;
 end;
 
 procedure TPolyBuilder.SubVec(const a, b:  T2i; var c: T2i);
