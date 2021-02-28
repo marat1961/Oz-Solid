@@ -23,7 +23,7 @@ interface
 uses
   System.Classes, System.SysUtils, System.Math, TestFramework,
   Oz.Solid.Types, Oz.Solid.Intersect, Oz.Solid.Svg, Oz.Solid.VectorInt,
-  Oz.Solid.Boolean, Oz.Solid.EarTri, Oz.Solid.DelaunayTri;
+  Oz.Solid.Boolean, Oz.Solid.EarTri, Oz.Solid.DelaunayTri, Oz.Solid.Polygon;
 
 {$Region 'Test2dPoint'}
 
@@ -83,6 +83,19 @@ type
   published
     procedure TestTri10;
     procedure TestTri100;
+  end;
+
+{$EndRegion}
+
+{$Region 'Polygon'}
+
+  TestPolygon = class(TTestCase)
+  public
+    Pb: TPolyBuilder;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestSqSq;
   end;
 
 {$EndRegion}
@@ -355,6 +368,29 @@ begin
   filename := '..\..\..\data\dt_100';
   Tri := TDelaunayTri.Create(filename);
   Tri.Build;
+end;
+
+{$EndRegion}
+
+{$Region 'Polygon'}
+
+procedure TestPolygon.SetUp;
+begin
+  inherited;
+end;
+
+procedure TestPolygon.TearDown;
+begin
+  inherited;
+end;
+
+procedure TestPolygon.TestSqSq;
+var
+  filename: string;
+begin
+  filename := '..\..\..\data\i.sqsq';
+  Pb.Build(filename);
+  Pb.Free;
 end;
 
 {$EndRegion}

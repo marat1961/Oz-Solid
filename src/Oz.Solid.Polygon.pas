@@ -114,8 +114,7 @@ type
     // Write to svg
     procedure OutputPolygons;
   public
-    procedure From(const filename: string);
-    procedure Build;
+    procedure Build(const filename: string);
     procedure Free;
     // P has n vertices, Q has m vertices.
     function ConvexIntersect(P, Q: tPolygoni; n, m: Integer): Integer;
@@ -165,22 +164,18 @@ end;
 
 {$Region 'TPolyBuilder'}
 
-procedure TPolyBuilder.From(const filename: string);
+procedure TPolyBuilder.Build(const filename: string);
 begin
   io.Init(filename);
+  ReadPolygons(io.filename);
+  OutputPolygons;
+  ConvexIntersect(P, Q, n, m);
+  ClosePostscript;
 end;
 
 procedure TPolyBuilder.Free;
 begin
   io.Free;
-end;
-
-procedure TPolyBuilder.Build;
-begin
-  ReadPolygons(io.filename);
-  OutputPolygons;
-  ConvexIntersect(P, Q, n, m);
-  ClosePostscript;
 end;
 
 procedure TPolyBuilder.ReadPolygons(const filename: string);
