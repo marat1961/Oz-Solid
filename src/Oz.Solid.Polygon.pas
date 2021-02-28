@@ -192,6 +192,7 @@ var
     str.LoadFromFile(filename);
     line := str.Strings[i];
     n := Integer.Parse(line);
+    SetLength(P, n);
     while (j > 0) and (i < str.Count) do
     begin
       io.Dbp('Polygon: %d', [n]);

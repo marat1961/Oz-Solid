@@ -475,6 +475,7 @@ end;
 {$EndRegion}
 
 initialization
+  RegisterTest(TestPolygon.Suite);
   RegisterTest(TestDelaunayTri.Suite);
   RegisterTest(TestEarTri.Suite);
   RegisterTest(Test2dPoint.Suite);
