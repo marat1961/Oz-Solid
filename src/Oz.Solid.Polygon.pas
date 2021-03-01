@@ -186,20 +186,29 @@ var
   procedure ReadPoly(var P: tPolygoni; var n: Integer);
   var
     line: string;
-    j: Integer;
+    j, x, y: Integer;
+    sa: TArray<string>;
   begin
     n := 0;
     str.LoadFromFile(filename);
     line := str.Strings[i];
+    Inc(i);
     n := Integer.Parse(line);
+    io.Dbp('Polygon: %d', [n]);
     SetLength(P, n);
-    while (j > 0) and (i < str.Count) do
+    j := n;
+    for j := 0 to n - 1 do
     begin
-      io.Dbp('Polygon: %d', [n]);
-      io.Dbp('  i   x   y');
-      io.Dbp('%3d%4d%4d', [n, P[n].x, P[n].y]);
-      Dec(j);
+      Assert(i < str.Count, 'eof - invalid file');
+      line := str.Strings[i];
       Inc(i);
+      sa := line.Split([Chr(9)]);
+      Assert(Length(sa) = 2, 'there must be two numbers separated by tabs');
+      if sa = nil then break;
+      P[j].x := Integer.Parse(sa[0]);
+      P[j].y := Integer.Parse(sa[1]);
+      io.Dbp('  i   x   y');
+      io.Dbp('%3d%4d%4d', [n, P[j].x, P[j].y]);
     end;
   end;
 
@@ -528,7 +537,7 @@ var
   // Compute Bounding Box
   procedure BBox(const P: tPolygoni);
   var
-    i, xmin, ymin, xmax, ymax: Integer;
+    i: Integer;
   begin
     for i := 1 to High(P) do
     begin
