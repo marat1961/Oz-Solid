@@ -225,15 +225,15 @@ end;
 
 procedure TPolyBuilder.ClosePostscript;
 begin
-  //  Dbp('closepath stroke\n');
-  //  Dbp('showpage\n%%%%EOF\n');
+  //  Dbp('closepath stroke');
+  //  Dbp('showpage\n%%%%EOF');
 end;
 
 procedure TPolyBuilder.PrintSharedSeg(p, q: tPointd);
 begin
-  //  Dbp('%%A int B:\n');
-  //  Dbp('%8.2lf %8.2lf moveto\n', p.x, p.y );
-  //  Dbp('%8.2lf %8.2lf lineto\n', q.x, q.y );
+  //  Dbp('%%A int B:');
+  //  Dbp('%8.2lf %8.2lf moveto', p.x, p.y );
+  //  Dbp('%8.2lf %8.2lf lineto', q.x, q.y );
   //  ClosePostscript();
 end;
 
@@ -273,42 +273,43 @@ begin
 
    // If denom is zero, then segments are parallel: handle separately.
    if denom = 0.0 then
-     Result :=  ParallelInt(a, b, c, d, p, q);
+     Result := ParallelInt(a, b, c, d, p, q)
+   else
+   begin
+     num := a.x * double(d.y - c.y) +
+            c.x * double(a.y - d.y) +
+            d.x * double(c.y - a.y);
+     if (num = 0.0) or (num = denom) then
+       code := 'v';
+     s := num / denom;
+     // Dbp('num=%lf, denom=%lf, s=%lf' num, denom, s);
 
-   num := a.x * double(d.y - c.y) +
-          c.x * double(a.y - d.y) +
-          d.x * double(c.y - a.y);
-   if (num = 0.0) or (num = denom) then
-     code := 'v';
-   s := num / denom;
-   // Dbp('num=%lf, denom=%lf, s=%lf\n' num, denom, s);
+     num := -(a.x * double(c.y - b.y) +
+              b.x * double(a.y - c.y) +
+              c.x * double(b.y - a.y) );
+     if (num = 0.0) or (num = denom) then code := 'v';
+     t := num / denom;
+     // Dbp('num=%lf, denom=%lf, t=%lf' num, denom, t);
 
-   num := -(a.x * double(c.y - b.y) +
-            b.x * double(a.y - c.y) +
-            c.x * double(b.y - a.y) );
-   if (num = 0.0) or (num = denom) then code := 'v';
-   t := num / denom;
-   // Dbp('num=%lf, denom=%lf, t=%lf' num, denom, t);
+     if (0.0 < s) and (s < 1.0) and (0.0 < t) and (t < 1.0) then
+       code := '1'
+     else if (0.0 > s) or (s > 1.0) or (0.0 > t) or (t > 1.0) then
+       code := '0';
 
-   if (0.0 < s) and (s < 1.0) and (0.0 < t) and (t < 1.0) then
-     code := '1'
-   else if (0.0 > s) or (s > 1.0) or (0.0 > t) or (t > 1.0) then
-     code := '0';
+     p.x := a.x + s * (b.x - a.x);
+     p.y := a.y + s * (b.y - a.y);
 
-   p.x := a.x + s * (b.x - a.x);
-   p.y := a.y + s * (b.y - a.y);
-
-   Result := code;
+     Result := code;
+   end;
 end;
 
 function TPolyBuilder.ParallelInt(a, b, c, d: T2i; p, q: tPointd): Char;
 begin
-  // printf("ParallelInt: a,b,c,d: (%d,%d), (%d,%d), (%d,%d), (%d,%d)\n",
+  // printf('ParallelInt: a,b,c,d: (%d,%d), (%d,%d), (%d,%d), (%d,%d)',
   // a.x,a.y, b.x,b.y, c.x,c.y, d.x,d.y);
-  if  not Collinear(a, b, c) then
-    Result :=  '0';
-
-  if Between(a, b, c) and Between(a, b, d) then
+  if not Collinear(a, b, c) then
+    Result :=  '0'
+  else if Between(a, b, c) and Between(a, b, d) then
   begin
     Assigndi(p, c);
     Assigndi(q, d);
@@ -391,7 +392,7 @@ procedure TPolyBuilder.PrintPoly(n: Integer; P: tPolygoni);
 var
   i: Integer;
 begin
-   io.Dbp('Polygon:\n');
+   io.Dbp('Polygon:');
    io.Dbp('  i   l   x   y');
    for i := 0 to High(P) do
      io.Dbp('%3d%4d%4d%4d', [i, P[i].x, P[i].y]);
@@ -438,7 +439,7 @@ begin
 
     // If A_ & B_ intersect, update inflag.
     code := SegSegInt(P[a1], P[a], Q[b1], Q[b], p_, q_);
-    io.Dbp('SegSegInt: code = %c', [code]);
+    io.Dbp('SegSegInt: code = %s', [code]);
     if (code = '1') or (code = 'v') then
     begin
       if (inflag = Unknown) and FirstPoint then
@@ -447,7 +448,7 @@ begin
         FirstPoint := FALSE;
         p0.x := p_.x;
         p0.y := p_.y;
-        io.Dbp('%8.2lf %8.2lf moveto', [p0.x, p0.y]);
+        io.Dbp('%8.2f %8.2f moveto', [p0.x, p0.y]);
       end;
       inflag := InOut(p_, inflag, aHB, bHA);
       io.Dbp('InOut sets inflag=%d', [Ord(inflag)]);
@@ -518,7 +519,7 @@ end;
 
 function TPolyBuilder.InOut(p: tPointd; inflag: tInFlag; aHB, bHA: Integer): tInFlag;
 begin
-  io.Dbp('%8.2lf %8.2lf lineto', [p.x, p.y]);
+  io.Dbp('%8.2f %8.2f lineto', [p.x, p.y]);
   // Update inflag.
   if aHB > 0 then
     Result := Pin
