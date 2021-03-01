@@ -422,6 +422,8 @@ begin
   inflag := Unknown;
   FirstPoint := TRUE;
 
+  Qp := TsvgPolygon.Create;
+  Pp := TsvgPolygon.Create;
   repeat
     io.Dbp('Before Advances: a=%d, b=%d; aa=%d, ba=%d; inflag=%d',
       [a, b, aa, ba, Ord(inflag)]);
@@ -501,7 +503,7 @@ begin
 
   if not FirstPoint then
     // If at least one point output, close up.
-    io.Dbp('%8.2lf %8.2lf lineto', [p0.x, p0.y]);
+    io.Dbp('%8.2f %8.2f lineto', [p0.x, p0.y]);
 
   // Deal with special cases: not implemented.
   if inflag = Unknown then

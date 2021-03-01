@@ -471,9 +471,11 @@ begin
 end;
 
 function TsvgPoly.Point(const pt: T2i): TsvgPoly;
+var
+  pd: T2dPoint;
 begin
-  FPoints := FPoints + [T2dPoint.From(pt.x, pt.y)];
-  Result := Self;
+  pd := T2dPoint.From(pt.x, pt.y);
+  Result := Point(pd);
 end;
 
 function TsvgPoly.Points(const points: T2dPoints): TsvgPoly;
