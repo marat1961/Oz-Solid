@@ -54,7 +54,6 @@ type
     filename: string;
     svg: TsvgBuilder;
     log: TStrings;
-    xmin, ymin, xmax, ymax: Integer;
   public
     procedure Init(const filename: string);
     procedure Free;
@@ -101,9 +100,6 @@ type
 
     procedure Assigndi(var p: tPointd; const a: T2i);
     procedure SubVec(const a, b:  T2i; var c: T2i);
-    function LeftOn(a, b, c: T2i): Boolean;
-    function Left(a, b, c: T2i): Boolean;
-    procedure PrintPoly(n: Integer; P: tPolygoni);
 
     function InOut(p: tPointd; inflag: tInFlag; aHB, bHA: Integer): tInFlag;
 
@@ -186,7 +182,7 @@ var
   procedure ReadPoly(var P: tPolygoni; var n: Integer);
   var
     line: string;
-    j, x, y: Integer;
+    j: Integer;
     sa: TArray<string>;
   begin
     n := 0;
@@ -196,7 +192,6 @@ var
     n := Integer.Parse(line);
     io.Dbp('Polygon: %d', [n]);
     SetLength(P, n);
-    j := n;
     for j := 0 to n - 1 do
     begin
       Assert(i < str.Count, 'eof - invalid file');
@@ -355,8 +350,6 @@ begin
 end;
 
 function TPolyBuilder.Between(a, b, c: T2i): Boolean;
-var
-  ba, ca: T2i;
 begin
   // If ab not vertical, check betweenness on x; else on y.
   if a.x <> b.x then
@@ -376,26 +369,6 @@ end;
 procedure TPolyBuilder.SubVec(const a, b:  T2i; var c: T2i);
 begin
   c := a.Minus(b);
-end;
-
-function TPolyBuilder.LeftOn(a, b, c: T2i): Boolean;
-begin
-  Result := AreaSign(a, b, c) >= 0;
-end;
-
-function TPolyBuilder.Left(a, b, c: T2i): Boolean;
-begin
-  Result := AreaSign(a, b, c) > 0;
-end;
-
-procedure TPolyBuilder.PrintPoly(n: Integer; P: tPolygoni);
-var
-  i: Integer;
-begin
-   io.Dbp('Polygon:');
-   io.Dbp('  i   l   x   y');
-   for i := 0 to High(P) do
-     io.Dbp('%3d%4d%4d%4d', [i, P[i].x, P[i].y]);
 end;
 
 function TPolyBuilder.ConvexIntersect(P, Q: tPolygoni; n, m: Integer): Integer;
@@ -508,6 +481,8 @@ begin
   // Deal with special cases: not implemented.
   if inflag = Unknown then
     io.Dbp('The boundaries of P and Q do not cross.');
+
+  Result := EXIT_FAILURE;
 end;
 
 function TPolyBuilder.Advance(poly: TsvgPolygon; a: Integer; var aa: Integer;
