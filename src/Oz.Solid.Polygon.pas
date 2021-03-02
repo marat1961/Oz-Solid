@@ -373,17 +373,17 @@ end;
 
 function TPolyBuilder.ConvexIntersect(P, Q: tPolygoni; n, m: Integer): Integer;
 var
-  a, b: Integer;       // indices on P and Q (resp.)
-  a1, b1: Integer;     // a-1, b-1 (resp.)
-  A_, B_: T2i;         // directed edges on P and Q (resp.)
+  pi, qi: Integer;     // indices on P and Q (resp.)
+  pi1, qo1: Integer;   // pi1, qi1 (resp.)
+  pe, qe: T2i;         // directed edges on P and Q (resp.)
   Qp, Pp: TsvgPolygon;
-  cross: Integer;      // sign of z-component of A x B
-  bHA, aHB: Integer;   // b in H(A); a in H(b).
+  cross: Integer;      // sign of z-component of pi x qi
+  bHA, aHB: Integer;   // qi in H(pi); pi in H(qi).
   Origin: T2i;
-  p_: tPointd;         // Double point of intersection
-  q_: tPointd;         // second point of intersection
+  pcpt: tPointd;       // Double point of intersection
+  qcpt: tPointd;       // second point of intersection
   inflag: tInFlag;     // {Pin, Qin, Unknown}: which inside
-  aa, ba: Integer;     // # advances on a & b indices (after 1st inter.)
+  aa, ba: Integer;     // # advances on pi & qi indices (after 1st inter.)
   FirstPoint: Boolean; // Is this the first point? (used to initialize).
   p0: tPointd;         // The first point.
   code: Char;          // SegSegInt return code.
@@ -391,7 +391,7 @@ begin
   Origin.x := 0;
   Origin.y := 0;
   // Initialize variables.
-  a := 0; b := 0; aa := 0; ba := 0;
+  pi := 0; qi := 0; aa := 0; ba := 0;
   inflag := Unknown;
   FirstPoint := TRUE;
 
@@ -399,21 +399,21 @@ begin
   Pp := TsvgPolygon.Create;
   repeat
     io.Dbp('Before Advances: a=%d, b=%d; aa=%d, ba=%d; inflag=%d',
-      [a, b, aa, ba, Ord(inflag)]);
+      [pi, qi, aa, ba, Ord(inflag)]);
     // Computations of key variables.
-    a1 := (a + n - 1) mod n;
-    b1 := (b + m - 1) mod m;
+    pi1 := (pi + n - 1) mod n;
+    qo1 := (qi + m - 1) mod m;
 
-    SubVec(P[a], P[a1], A_);
-    SubVec(Q[b], Q[b1], B_);
+    SubVec(P[pi], P[pi1], pe);
+    SubVec(Q[qi], Q[qo1], qe);
 
-    cross := AreaSign(Origin, A_, B_);
-    aHB := AreaSign(Q[b1], Q[b], P[a]);
-    bHA := AreaSign(P[a1], P[a], Q[b]);
+    cross := AreaSign(Origin, pe, qe);
+    aHB := AreaSign(Q[qo1], Q[qi], P[pi]);
+    bHA := AreaSign(P[pi1], P[pi], Q[qi]);
     io.Dbp('cross=%d, aHB=%d, bHA=%d', [cross, aHB, bHA]);
 
-    // If A_ & B_ intersect, update inflag.
-    code := SegSegInt(P[a1], P[a], Q[b1], Q[b], p_, q_);
+    // If pe & qe intersect, update inflag.
+    code := SegSegInt(P[pi1], P[pi], Q[qo1], Q[qi], pcpt, qcpt);
     io.Dbp('SegSegInt: code = %s', [code]);
     if (code = '1') or (code = 'v') then
     begin
@@ -421,55 +421,55 @@ begin
       begin
         aa := 0; ba := 0;
         FirstPoint := FALSE;
-        p0.x := p_.x;
-        p0.y := p_.y;
+        p0.x := pcpt.x;
+        p0.y := pcpt.y;
         io.Dbp('%8.2f %8.2f moveto', [p0.x, p0.y]);
       end;
-      inflag := InOut(p_, inflag, aHB, bHA);
+      inflag := InOut(pcpt, inflag, aHB, bHA);
       io.Dbp('InOut sets inflag=%d', [Ord(inflag)]);
     end;
 
     // Advance rule
 
-    // Special case: A_ & B_ overlap and oppositely oriented.
-    if (code = 'e' ) and (Dot(A_, B_) < 0) then
+    // Special case: pe & qe overlap and oppositely oriented.
+    if (code = 'e' ) and (Dot(pe, qe) < 0) then
     begin
-      PrintSharedSeg( p_, q_);
+      PrintSharedSeg( pcpt, qcpt);
       exit(EXIT_SUCCESS);
     end;
 
-    // Special case: A_ & B_ parallel and separated.
+    // Special case: pe & qe parallel and separated.
     if (cross = 0) and (aHB < 0) and (bHA < 0) then
     begin
       io.Dbp('P and Q are disjoint.');
       exit(EXIT_SUCCESS);
     end
-    // Special case: A_ & B_ collinear.
+    // Special case: pe & qe collinear.
     else if (cross = 0) and ( aHB = 0) and (bHA = 0) then
     begin
       // Advance but do not output point.
       if inflag = Pin then
-        b := Advance(Qp, b, ba, m, inflag = Qin, Q[b])
+        qi := Advance(Qp, qi, ba, m, inflag = Qin, Q[qi])
       else
-        a := Advance(Pp, a, aa, n, inflag = Pin, P[a]);
+        pi := Advance(Pp, pi, aa, n, inflag = Pin, P[pi]);
     end
     // Generic cases.
     else if cross >= 0 then
     begin
       if bHA > 0 then
-        a := Advance(Pp, a, aa, n, inflag = Pin, P[a])
+        pi := Advance(Pp, pi, aa, n, inflag = Pin, P[pi])
       else
-        b := Advance(Qp, b, ba, m, inflag = Qin, Q[b]);
+        qi := Advance(Qp, qi, ba, m, inflag = Qin, Q[qi]);
     end
     else // if ( cross < 0 )
     begin
       if aHB > 0 then
-        b := Advance(Qp, b, ba, m, inflag = Qin, Q[b])
+        qi := Advance(Qp, qi, ba, m, inflag = Qin, Q[qi])
       else
-        a := Advance(Pp, a, aa, n, inflag = Pin, P[a]);
+        pi := Advance(Pp, pi, aa, n, inflag = Pin, P[pi]);
     end;
     io.Dbp('After advances:a=%d, b=%d; aa=%d, ba=%d; inflag=%d',
-      [a, b, aa, ba, Ord(inflag)]);
+      [pi, qi, aa, ba, Ord(inflag)]);
 
     // Quit when both adv. indices have cycled, or one has cycled twice.
   until not (((aa < n) or (ba < m)) and (aa < 2 * n) and (ba < 2 * m));
