@@ -103,6 +103,7 @@
         <DCCReference Include="..\src\Oz.Solid.Bezier.pas"/>
         <DCCReference Include="..\src\Oz.Solid.DelaunayTri.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Polygon.pas"/>
+        <DCCReference Include="..\src\Oz.Solid.KdTree.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

@@ -20,7 +20,8 @@ uses
   Oz.Solid.Svg in '..\src\Oz.Solid.Svg.pas',
   Oz.Solid.Bezier in '..\src\Oz.Solid.Bezier.pas',
   Oz.Solid.DelaunayTri in '..\src\Oz.Solid.DelaunayTri.pas',
-  Oz.Solid.Polygon in '..\src\Oz.Solid.Polygon.pas';
+  Oz.Solid.Polygon in '..\src\Oz.Solid.Polygon.pas',
+  Oz.Solid.KdTree in '..\src\Oz.Solid.KdTree.pas';
 
 {$R *.RES}
 
