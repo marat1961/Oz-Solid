@@ -22,6 +22,8 @@ interface
 
 {$T+}
 
+uses
+  Oz.SGL.Heap;
 
 const
   DIMENSIONS = 3;

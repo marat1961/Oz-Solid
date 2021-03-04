@@ -90,10 +90,6 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="TestUtils.pas"/>
-        <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Hash.pas"/>
-        <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Heap.pas"/>
-        <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Collections.pas"/>
-        <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.HandleManager.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Types.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Intersect.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Boolean.pas"/>
@@ -104,6 +100,10 @@
         <DCCReference Include="..\src\Oz.Solid.DelaunayTri.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Polygon.pas"/>
         <DCCReference Include="..\src\Oz.Solid.KdTree.pas"/>
+        <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Collections.pas"/>
+        <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.HandleManager.pas"/>
+        <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Hash.pas"/>
+        <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Heap.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
