@@ -23,7 +23,7 @@ interface
 {$T+}
 
 uses
-  Oz.SGL.Heap;
+  Oz.SGL.Heap, Oz.Solid.Types;
 
 const
   DIMENSIONS = 3;
@@ -46,6 +46,17 @@ type
   end;
 
   TkdPoints = TArray<TkdPoint>;
+
+  PsdEdge = ^TsdEdge;
+  TsdEdge = record
+  end;
+
+  TsdEdges = record
+  end;
+
+  PsdPoints = ^TsdPoints;
+  TsdPoints = record
+  end;
 
   PsdEdgeLl = ^TsdEdgeLl;
   PsdKdNodeEdges = ^TsdKdNodeEdges;
