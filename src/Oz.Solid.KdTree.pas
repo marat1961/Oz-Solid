@@ -22,6 +22,7 @@ interface
 
 {$T+}
 
+
 const
   DIMENSIONS = 3;
   BUCKET_SIZE = 10;
@@ -43,6 +44,37 @@ type
   end;
 
   TkdPoints = TArray<TkdPoint>;
+
+  PsdEdgeLl = ^TsdEdgeLl;
+  PsdKdNodeEdges = ^TsdKdNodeEdges;
+
+  TsdKdEdgesTree = record
+    redge, rnode: PMemoryRegion;
+    root: PsdKdNodeEdges;
+    procedure Init(const List: TsdEdges);
+    procedure Free;
+    function AllocEdgeLl: PsdEdgeLl;
+    function AllocNodeEdges: PsdKdNodeEdges;
+  end;
+
+  TsdEdgeLl = record
+    se: PsdEdge;
+    next: PsdEdgeLl;
+  end;
+
+  TsdKdNodeEdges = record
+  private
+    which: Integer;
+    c: Double;
+    gt, lt: PsdKdNodeEdges;
+    edges: PsdEdgeLl;
+    class function From(const tree: TsdKdEdgesTree;
+      const sel: TsdEdges): PsdKdNodeEdges; overload; static;
+    class function From(const tree: TsdKdEdgesTree;
+      const sell: PsdEdgeLl): PsdKdNodeEdges; overload; static;
+    function AnyEdgeCrossings(const a, b: TsdVector; cnt: Integer;
+      pi: PsdVector = nil; spl: PsdPoints = nil): Integer;
+  end;
 
 procedure Test;
 
