@@ -105,7 +105,7 @@ type
     procedure Delete(Index: Integer); inline;
     procedure Exchange(Index1, Index2: Integer); inline;
     function IndexOf(Item: PItem): Integer; inline;
-    procedure Assign(const Source: TsdTaggedList<T>);
+    procedure Assign(const Source: TsdTaggedList<T>); inline;
     procedure Sort(Compare: TListSortCompare); inline;
     procedure Reverse; inline;
     procedure ClearTags;
@@ -296,13 +296,11 @@ begin
 end;
 
 procedure TCustomTaggedList.ClearTags;
+var
+  i: Integer;
 begin
-  FList.TraverseBy(
-    function(Item: Pointer): Boolean
-    begin
-      PsdEntry(Item).tag := 0;
-      Result := False;
-    end);
+  for i := 0 to Count - 1 do
+    PsdEntry(FList.Items[i]).tag := 0;
 end;
 
 procedure TCustomTaggedList.RemoveTagged;
@@ -315,12 +313,17 @@ begin
 end;
 
 function TCustomTaggedList.FindByTag(tag: Integer): Pointer;
+var
+  i: Integer;
+  item: Pointer;
 begin
-  Result := FList.TraverseBy(
-    function(Item: Pointer): Boolean
-    begin
-      Result := PsdEntry(Item).tag = tag;
-    end);
+  for i := 0 to Count - 1 do
+  begin
+    item := Get(i);
+    if PsdEntry(item).tag = tag then
+      exit(item);
+  end;
+  Result := nil;
 end;
 
 function TCustomTaggedList.IsEmpty: Boolean;
@@ -357,7 +360,7 @@ var
   meta: PsgItemMeta;
 begin
   meta := SysCtx.CreateMeta<T>;
-  FList := TsgPointerList.From(meta);
+  FList.Init(meta);
 end;
 
 procedure TsdTaggedList<T>.Free;
@@ -416,11 +419,8 @@ begin
 end;
 
 procedure TsdTaggedList<T>.Assign(const Source: TsdTaggedList<T>);
-var i: Integer;
 begin
-  Count := 0;
-  for i := 0 to Source.Count - 1 do
-    Add(Source.Items[i]);
+  FList.Assign(Source.FList);
 end;
 
 procedure TsdTaggedList<T>.Sort(Compare: TListSortCompare);
@@ -435,30 +435,17 @@ end;
 
 procedure TsdTaggedList<T>.ClearTags;
 begin
-  FList.TraverseBy(
-    function(Item: Pointer): Boolean
-    begin
-      PsdEntry(Item).tag := 0;
-      Result := False;
-    end);
+  FList.ClearTags;
 end;
 
 procedure TsdTaggedList<T>.RemoveTagged;
 begin
-  FList.RemoveBy(
-    function(Item: Pointer): Boolean
-    begin
-      Result := PsdEntry(Item).tag <> 0;
-    end);
+  FList.RemoveTagged;
 end;
 
 function TsdTaggedList<T>.FindByTag(tag: Integer): PItem;
 begin
-  Result := FList.TraverseBy(
-    function(Item: Pointer): Boolean
-    begin
-      Result := PsdEntry(Item).tag = tag;
-    end);
+  FList.FindByTag(tag);
 end;
 
 function TsdTaggedList<T>.IsEmpty: Boolean;
@@ -468,12 +455,12 @@ end;
 
 function TsdTaggedList<T>.Get(Index: Integer): PItem;
 begin
-  Result := PItem(FList.Items[Index]);
+  Result := FList.Get(Index);
 end;
 
 procedure TsdTaggedList<T>.Put(Index: Integer; Item: PItem);
 begin
-  FList.Items[Index] := Item;
+  FList.Put(Index, Item);
 end;
 
 function TsdTaggedList<T>.GetCount: Integer;
