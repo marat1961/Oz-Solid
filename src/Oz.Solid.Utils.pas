@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this file. If not, see <https://www.gnu.org/licenses/>.
  *)
+
 unit Oz.Solid.Utils;
 
 interface
@@ -46,17 +47,36 @@ type
 
 {$EndRegion}
 
-{$Region 'TsdContext'}
+{$Region 'TCustomTaggedList'}
 
-  TsdContext = class
-  protected
-    FHeap: THeapPool;
-    procedure Init; virtual;
+  TCustomTaggedList = record
+  private
+    FList: TsgPointerList;
+    function Get(Index: Integer): Pointer;
+    procedure Put(Index: Integer; Item: Pointer);
+    function GetCount: Integer;
+    procedure SetCount(Value: Integer);
   public
-    constructor Create;
-    destructor Destroy; override;
-    procedure FreeAllTemporary;
-    property Heap: THeapPool read FHeap;
+    procedure Init(meta: PsgItemMeta);
+    procedure Free; inline;
+    procedure Clear; inline;
+    function First: Pointer; inline;
+    function Last: Pointer; inline;
+    function NextAfter(prev: Pointer): Pointer; inline;
+    function Add(Item: Pointer): Integer; inline;
+    procedure AddToBeginning(Item: Pointer);
+    procedure Insert(Index: Integer; Item: Pointer); inline;
+    procedure Delete(Index: Integer); inline;
+    procedure Exchange(Index1, Index2: Integer); inline;
+    function IndexOf(Item: Pointer): Integer; inline;
+    procedure Assign(const Source: TCustomTaggedList);
+    procedure Sort(Compare: TListSortCompare); inline;
+    procedure Reverse; inline;
+    procedure ClearTags;
+    procedure RemoveTagged;
+    function FindByTag(tag: Integer): Pointer;
+    function IsEmpty: Boolean; inline;
+    property Count: Integer read GetCount write SetCount;
   end;
 
 {$EndRegion}
@@ -67,11 +87,11 @@ type
   public type
     PItem = ^T;
   private
-    FList: TsgPointerList;
-    function Get(Index: Integer): PItem;
-    procedure Put(Index: Integer; Item: PItem);
-    function GetCount: Integer;
-    procedure SetCount(Value: Integer);
+    FList: TCustomTaggedList;
+    function Get(Index: Integer): PItem; inline;
+    procedure Put(Index: Integer; Item: PItem); inline;
+    function GetCount: Integer; inline;
+    procedure SetCount(Value: Integer); inline;
   public
     procedure Init;
     procedure Free;
@@ -94,7 +114,7 @@ type
     function IsEmpty: Boolean; inline;
     property Count: Integer read GetCount write SetCount;
     property Items[Index: Integer]: PItem read Get write Put;
-    property List: TsgPointerList read FList;
+    property List: TCustomTaggedList read FList;
   end;
 
 {$EndRegion}
@@ -155,6 +175,21 @@ type
 
 {$EndRegion}
 
+{$Region 'TsdContext'}
+
+  TsdContext = class
+  protected
+    FHeap: THeapPool;
+    procedure Init; virtual;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure FreeAllTemporary;
+    property Heap: THeapPool read FHeap;
+  end;
+
+{$EndRegion}
+
 function IdCompare(a, b: Pointer): Integer;
 
 // Limit the value to a range of (0, n)
@@ -179,6 +214,141 @@ begin
   while v < 0 do v := v + n;
   Result := v;
 end;
+
+{$Region 'TCustomTaggedList'}
+
+procedure TCustomTaggedList.Init(meta: PsgItemMeta);
+begin
+  FList := TsgPointerList.From(meta);
+end;
+
+procedure TCustomTaggedList.Free;
+begin
+  FList.Free;
+end;
+
+procedure TCustomTaggedList.Clear;
+begin
+  FList.Clear;
+end;
+
+function TCustomTaggedList.First: Pointer;
+begin
+  Result := FList.First;
+end;
+
+function TCustomTaggedList.Last: Pointer;
+begin
+  Result := FList.Last;
+end;
+
+function TCustomTaggedList.NextAfter(prev: Pointer): Pointer;
+begin
+  Result := FList.NextAfter(prev);
+end;
+
+function TCustomTaggedList.Add(Item: Pointer): Integer;
+begin
+  Result := FList.Add(Item);
+end;
+
+procedure TCustomTaggedList.Insert(Index: Integer; Item: Pointer);
+begin
+  FList.Insert(Index, Item);
+end;
+
+procedure TCustomTaggedList.AddToBeginning(Item: Pointer);
+begin
+  FList.Insert(0, Item);
+end;
+
+procedure TCustomTaggedList.Delete(Index: Integer);
+begin
+  FList.Delete(Index);
+end;
+
+procedure TCustomTaggedList.Exchange(Index1, Index2: Integer);
+begin
+  FList.Exchange(Index1, Index2);
+end;
+
+function TCustomTaggedList.IndexOf(Item: Pointer): Integer;
+begin
+  Result := FList.IndexOf(Item);
+end;
+
+procedure TCustomTaggedList.Assign(const Source: TCustomTaggedList);
+var i: Integer;
+begin
+  Count := 0;
+  for i := 0 to Source.Count - 1 do
+    Add(Source.Get(i));
+end;
+
+procedure TCustomTaggedList.Sort(Compare: TListSortCompare);
+begin
+  FList.Sort(Compare);
+end;
+
+procedure TCustomTaggedList.Reverse;
+begin
+  FList.Reverse;
+end;
+
+procedure TCustomTaggedList.ClearTags;
+begin
+  FList.TraverseBy(
+    function(Item: Pointer): Boolean
+    begin
+      PsdEntry(Item).tag := 0;
+      Result := False;
+    end);
+end;
+
+procedure TCustomTaggedList.RemoveTagged;
+begin
+  FList.RemoveBy(
+    function(Item: Pointer): Boolean
+    begin
+      Result := PsdEntry(Item).tag <> 0;
+    end);
+end;
+
+function TCustomTaggedList.FindByTag(tag: Integer): Pointer;
+begin
+  Result := FList.TraverseBy(
+    function(Item: Pointer): Boolean
+    begin
+      Result := PsdEntry(Item).tag = tag;
+    end);
+end;
+
+function TCustomTaggedList.IsEmpty: Boolean;
+begin
+  Result := FList.IsEmpty;
+end;
+
+function TCustomTaggedList.Get(Index: Integer): Pointer;
+begin
+  Result := FList.Items[Index];
+end;
+
+procedure TCustomTaggedList.Put(Index: Integer; Item: Pointer);
+begin
+  FList.Items[Index] := Item;
+end;
+
+function TCustomTaggedList.GetCount: Integer;
+begin
+  Result := FList.Count;
+end;
+
+procedure TCustomTaggedList.SetCount(Value: Integer);
+begin
+  FList.Count := Value;
+end;
+
+{$EndRegion}
 
 {$Region 'TsdTaggedList<T>'}
 
