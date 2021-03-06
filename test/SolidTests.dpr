@@ -21,7 +21,8 @@ uses
   Oz.SGL.Collections in '..\..\Oz-SGL\src\Oz.SGL.Collections.pas',
   Oz.SGL.HandleManager in '..\..\Oz-SGL\src\Oz.SGL.HandleManager.pas',
   Oz.SGL.Hash in '..\..\Oz-SGL\src\Oz.SGL.Hash.pas',
-  Oz.SGL.Heap in '..\..\Oz-SGL\src\Oz.SGL.Heap.pas';
+  Oz.SGL.Heap in '..\..\Oz-SGL\src\Oz.SGL.Heap.pas',
+  Oz.Solid.Utils in '..\src\Oz.Solid.Utils.pas';
 
 {$R *.RES}
 

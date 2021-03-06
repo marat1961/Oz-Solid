@@ -100,6 +100,12 @@ function IntersectSegments(const a, b, c, d: T2dPoint;
 // Return the intersection point of lines
 function IntersectLines(const a, b, c, d: T2dPoint;
   var cross: T2dPoint): Boolean;
+function AtIntersectionOfLines(const a0, a1, b0, b1: TsdVector;
+  skew: PBoolean; pa, pb: PDouble): TsdVector;
+procedure ClosestPointBetweenLines(const a0, da, b0, db: TsdVector;
+  var pa, pb: Double);
+
+// Return signed area
 function GetSignedArea(const points: TArray<T2dPoint>): Double;
 
 {$EndRegion}
@@ -183,6 +189,35 @@ begin
   cross.x := (d1 * cd.x - d2 * ab.x) / t;
   cross.y := (d1 * cd.y - d2 * ab.y) / t;
   Result := True;
+end;
+
+function AtIntersectionOfLines(const a0, a1, b0, b1: TsdVector;
+  skew: PBoolean; pa, pb: PDouble): TsdVector;
+var
+  da, db: TsdVector;
+  a, b: Double;
+begin
+  da := a1.Minus(a0);
+  db := b1.Minus(b0);
+  ClosestPointBetweenLines(a0, da, b0, db, a, b);
+  if pa <> nil then pa^ := a;
+  if pb <> nil then pb^ := b;
+  var r := a0.Plus(da.ScaledBy(a));
+  if skew <> nil then
+    skew^ := not r.Equals(b0.Plus(db.ScaledBy(b)));
+ Result := r;
+end;
+
+procedure ClosestPointBetweenLines(const a0, da, b0, db: TsdVector;
+  var pa, pb: Double);
+var
+  dn, dna, dnb: TsdVector;
+begin
+  dn := da.Cross(db);
+  dna := dn.Cross(da);
+  dnb := dn.Cross(db);
+  pb := a0.Minus(b0).Dot(dna) / db.Dot(dna);
+  pa := -a0.Minus(b0).Dot(dnb) / da.Dot(dnb);
 end;
 
 function GetSignedArea(const points: TArray<T2dPoint>): Double;

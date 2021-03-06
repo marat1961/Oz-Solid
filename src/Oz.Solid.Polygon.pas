@@ -23,7 +23,9 @@ interface
 {$Region 'Uses'}
 
 uses
-  System.Classes, System.SysUtils, Oz.Solid.VectorInt, Oz.Solid.Svg;
+  System.Classes, System.SysUtils, System.Math,
+  Oz.SGL.Heap, Oz.SGL.Collections,
+  Oz.Solid.Utils, Oz.Solid.Types, Oz.Solid.VectorInt, Oz.Solid.Svg;
 
 {$EndRegion}
 
@@ -34,6 +36,8 @@ uses
 const
   EXIT_SUCCESS = 0;
   EXIT_FAILURE = 1;
+  LengthEps = 1e-6;
+  KdTreeEps = 10 * LengthEps;
 
 type
   tInFlag = (Pin, Qin, Unknown);
@@ -118,7 +122,171 @@ type
 
 {$EndRegion}
 
+{$Region 'TsdPoint'}
+
+  TEarType = (eUnknown, eNotEar, eEar);
+
+  TsdPoint = record
+    tag: Integer;
+    ear: TEarType;
+    p: TsdVector;
+    auxv: TsdVector;
+    procedure Init(const pt: TsdVector);
+  end;
+  PsdPoint = ^TsdPoint;
+
+{$EndRegion}
+
+{$Region 'TsdPoints'}
+
+  PsdPoints = ^TsdPoints;
+  TsdPoints = record
+    List: TsdTaggedList<TsdPoint>;
+    procedure Init;
+    procedure Free;
+    function ContainsPoint(const Pt: TsdVector): Boolean;
+    function IndexForPoint(const Pt: TsdVector): Integer;
+    procedure IncrementTagFor(const Pt: TsdVector);
+    function Add(const Pt: TsdVector): PsdPoint;
+  end;
+
+{$EndRegion}
+
+{$Region 'TsdEdge'}
+
+  PsdEdge = ^TsdEdge;
+  TsdEdge = record
+    tag: Integer;
+    auxA, auxB: Integer;
+    a, b: TsdVector;
+    constructor From(const a, b: TsdVector);
+    function Length: Double;
+    function EdgeCrosses(const ea, eb: TsdVector; cross: PsdVector = nil;
+      points: PsdPoints = nil): Boolean;
+  end;
+
+{$EndRegion}
+
+{$Region 'TsdEdges'}
+
+  PsdPolygon = ^TsdPolygon;
+  PsdContour = ^TsdContour;
+
+  PsdEdges = ^TsdEdges;
+  TsdEdges = record
+  var
+    List: TsdTaggedList<TsdEdge>;
+  public
+    procedure Init;
+    procedure Clear;
+    procedure Free;
+    procedure AddEdge(const a, b: TsdVector;
+      auxA: Integer = 0; auxB: Integer = 0; tag: Integer = 0);
+    function AssemblePolygon(dest: PsdPolygon;
+      errorAt: PsdEdge; keepDir: Boolean): Boolean;
+    function AssembleContour(const first, last: TsdVector; dest: PsdContour;
+      errorAt: PsdEdge; keepDir: Boolean; start: Integer): Boolean;
+    function AnyEdgeCrossings(const a, b: TsdVector;
+      cross: PsdVector = nil; points: PsdPoints = nil): Integer;
+    function ContainsEdgeFrom(edges: PsdEdges): Boolean;
+    function ContainsEdge(e: PsdEdge): Boolean;
+    procedure CullExtraneousEdges(both: Boolean);
+    procedure MergeCollinearSegments(const a, b: TsdVector);
+  end;
+
+{$EndRegion}
+
+{$Region 'TsdContour'}
+
+  TsdContour = record
+  var
+    tag: Integer;
+    TimesEnclosed: Integer;
+    XminPt: TsdVector;
+    List: TsdTaggedList<TsdPoint>;
+  public
+    procedure Init;
+    procedure Free;
+    procedure AddPoint(const pt: TsdVector);
+    procedure MakeEdgesInto(sl: PsdEdges);
+    procedure Reverse;
+    function ComputeNormal: TsdVector;
+    function SignedAreaProjdToNormal(const n: TsdVector): Double;
+    function IsClockwiseProjdToNormal(const n: TsdVector): Boolean;
+    function ContainsPointProjdToNormal(const n, p: TsdVector): Boolean;
+    procedure OffsetInto(var dest: TsdContour; r: Double);
+    procedure CopyInto(var dest: TsdContour);
+    procedure FindPointWithMinX;
+    function AnyEdgeMidpoint: TsdVector;
+  end;
+
+{$EndRegion}
+
+{$Region 'TsdPolygon'}
+
+  TsdPolygon = record
+  var
+    ctx: TsdContext;
+    List: TsdTaggedList<TsdContour>;
+    Normal: TsdVector;
+  public
+    procedure Init(ctx: TsdContext);
+    procedure Free;
+    function IsEmpty: Boolean;
+    function ComputeNormal: TsdVector;
+    function AddEmptyContour: PsdContour;
+    function ContainsPoint(const p: TsdVector): Boolean;
+    function WindingNumberForPoint(const p: TsdVector): Integer;
+    function SignedArea: Double;
+    procedure InverseTransformInto(poly: PsdPolygon; const u, v, n: TsdVector);
+    procedure MakeEdgesInto(edges: PsdEdges);
+    procedure FixContourDirections;
+    function SelfIntersecting(var intersectsAt: TsdVector): Boolean;
+    function AnyPoint: TsdVector;
+    procedure OffsetInto(dest: PsdPolygon; r: Double);
+  end;
+
+{$EndRegion}
+
+{$Region 'TsdKdEdgesTree'}
+
+  PsdEdgeLl = ^TsdEdgeLl;
+  PsdKdNodeEdges = ^TsdKdNodeEdges;
+
+  TsdKdEdgesTree = record
+    redge, rnode: PSegmentedRegion;
+    root: PsdKdNodeEdges;
+    procedure Init(ctx: TsdContext; const List: TsdEdges);
+    procedure Free;
+    function AllocEdgeLl: PsdEdgeLl;
+    function AllocNodeEdges: PsdKdNodeEdges;
+  end;
+
+  TsdEdgeLl = record
+    se: PsdEdge;
+    next: PsdEdgeLl;
+  end;
+
+  TsdKdNodeEdges = record
+  private
+    which: Integer;
+    c: Double;
+    gt, lt: PsdKdNodeEdges;
+    edges: PsdEdgeLl;
+    class function From(const tree: TsdKdEdgesTree;
+      const edges: TsdEdges): PsdKdNodeEdges; overload; static;
+    class function From(const tree: TsdKdEdgesTree;
+      const ell: PsdEdgeLl): PsdKdNodeEdges; overload; static;
+    function AnyEdgeCrossings(const a, b: TsdVector; cnt: Integer;
+      pi: PsdVector = nil; points: PsdPoints = nil): Integer;
+  end;
+
+{$EndRegion}
+
 implementation
+
+uses
+  Oz.Solid.Intersect;
 
 {$Region 'TsvgIO'}
 
@@ -558,6 +726,915 @@ begin
 
   PolygonToSvg(P, 'green');
   PolygonToSvg(Q, 'red');
+end;
+
+{$EndRegion}
+
+{$Region 'TsdPoint'}
+
+procedure TsdPoint.Init(const pt: TsdVector);
+begin
+  Self := Default(TsdPoint);
+  p := pt;
+end;
+
+{$EndRegion}
+
+{$Region 'TsdPoints'}
+
+procedure TsdPoints.Init;
+begin
+  List.Init;
+end;
+
+procedure TsdPoints.Free;
+begin
+  List.Free;
+end;
+
+function TsdPoints.ContainsPoint(const Pt: TsdVector): Boolean;
+begin
+  Result := IndexForPoint(Pt) >= 0;
+end;
+
+function TsdPoints.IndexForPoint(const Pt: TsdVector): Integer;
+var i: Integer;
+begin
+  for i := 0 to List.Count - 1 do
+    if Pt.Equals(List.Items[i].P) then
+      exit(i);
+  Result := -1;
+end;
+
+procedure TsdPoints.IncrementTagFor(const Pt: TsdVector);
+var
+  i: Integer;
+  p: PsdPoint;
+begin
+  for i := 0 to List.Count - 1 do
+  begin
+    p := List.Items[i];
+    if Pt.Equals(p.p) then
+    begin
+      Inc(p.tag);
+      exit;
+    end;
+  end;
+  p := Add(Pt);
+  p.tag := 1;
+end;
+
+function TsdPoints.Add(const Pt: TsdVector): PsdPoint;
+var p: TsdPoint;
+begin
+  p.Init(Pt);
+  Result := List.Items[List.Add(@p)];
+end;
+
+{$EndRegion}
+
+{$Region 'TsdEdge'}
+
+constructor TsdEdge.From(const a, b: TsdVector);
+begin
+  Self.a := a;
+  Self.b := b;
+  auxA := 0;
+  auxB := 0;
+  tag := 0;
+end;
+
+function TsdEdge.Length: Double;
+begin
+  Result := a.Minus(b).Magnitude;
+end;
+
+function TsdEdge.EdgeCrosses(const ea, eb: TsdVector; cross: PsdVector;
+  points: PsdPoints): Boolean;
+var
+  eps, tthis_eps, m, t, tthis: Double;
+  inters, skew, inOrEdge0, inOrEdge1: Boolean;
+  d, dthis, pi: TsdVector;
+begin
+  d := eb.Minus(ea);
+  eps := LengthEps / d.Magnitude;
+  dthis := b.Minus(a);
+  tthis_eps := LengthEps / dthis.Magnitude;
+  if (ea.Equals(a) and eb.Equals(b)) or
+     (eb.Equals(a) and ea.Equals(b)) then
+  begin
+    if cross <> nil then cross^ := a;
+    if points <> nil then points.Add(a);
+    exit(True);
+  end;
+
+  m := Sqrt(d.Magnitude * dthis.Magnitude);
+  if Sqrt(Abs(d.Dot(dthis))) > (m - LengthEps) then
+  begin
+    if Abs(a.DistanceToLine(ea, d)) > LengthEps then
+      exit(False);
+    inters := False;
+    t := a.Minus(ea).DivProjected(d);
+    if (t > eps) and (t < (1 - eps)) then inters := True;
+    t := b.Minus(ea).DivProjected(d);
+    if (t > eps) and (t < (1 - eps)) then inters := True;
+    t := ea.Minus(a).DivProjected(dthis);
+    if (t > tthis_eps) and (t < (1 - tthis_eps)) then inters := True;
+    t := eb.Minus(a).DivProjected(dthis);
+    if (t > tthis_eps) and (t < (1 - tthis_eps)) then inters := True;
+    if not inters then
+      exit(False)
+    else
+    begin
+      if cross <> nil then cross^ := A;
+      if points <> nil then points.Add(A);
+      exit(True);
+    end;
+  end;
+  pi := AtIntersectionOfLines(ea, eb, a, b, @skew, @t, @tthis);
+  if skew then exit(False);
+
+  inOrEdge0 := (t > -eps) and (t < (1 + eps));
+  inOrEdge1 := (tthis > -tthis_eps) and (tthis < (1 + tthis_eps));
+  if inOrEdge0 and inOrEdge1 then
+  begin
+    if a.Equals(ea) or b.Equals(ea) or a.Equals(eb) or b.Equals(eb) then
+      exit(False);
+    if cross <> nil then cross^ := pi;
+    if points <> nil then points.Add(pi);
+    exit(True);
+  end;
+  Result := False;
+end;
+
+{$EndRegion}
+
+{$Region 'TsdEdges'}
+
+procedure TsdEdges.Init;
+begin
+  List.Init;
+end;
+
+procedure TsdEdges.Clear;
+begin
+  List.Clear;
+end;
+
+procedure TsdEdges.Free;
+begin
+  List.Free;
+end;
+
+var LineStart, LineDirection: TsdVector;
+
+function ByAlongLineEdge(av, bv: Pointer): Integer;
+var
+  a, b: PsdEdge;
+  ta, tb: Double;
+begin
+  a := PsdEdge(av);
+  b := PsdEdge(bv);
+  ta := (a.a.Minus(LineStart)).DivProjected(LineDirection);
+  tb := (b.a.Minus(LineStart)).DivProjected(LineDirection);
+  Result := CompareValue(ta, tb);
+end;
+
+procedure TsdEdges.AddEdge(const a, b: TsdVector; auxA, auxB, tag: Integer);
+var
+  e: TsdEdge;
+begin
+  e := TsdEdge.From(a, b);
+  e.auxA := auxA;
+  e.auxB := auxB;
+  e.tag := tag;
+  List.Add(@e);
+end;
+
+function TsdEdges.AssemblePolygon(dest: PsdPolygon;
+  errorAt: PsdEdge; keepDir: Boolean): Boolean;
+var
+  allClosed: Boolean;
+  i: Integer;
+  e: PsdEdge;
+  sc: PsdContour;
+begin
+  dest.List.Clear;
+  allClosed := True;
+  for i := 0 to List.Count - 1 do
+  begin
+    e := List.Items[i];
+    if e.tag = 0  then
+    begin
+      e.tag := 1;
+      sc := dest.AddEmptyContour;
+      if not AssembleContour(e.a, e.b, sc, errorAt, keepDir, i + 1) then
+        allClosed := False;
+    end;
+  end;
+  Result := allClosed;
+end;
+
+function TsdEdges.AnyEdgeCrossings(const a, b: TsdVector;
+  cross: PsdVector; points: PsdPoints): Integer;
+var
+  i: Integer;
+  e: PsdEdge;
+begin
+  Result := 0;
+  for i := 0 to List.Count - 1 do
+  begin
+    e := List.Items[i];
+    if e.EdgeCrosses(a, b, cross, points) then
+      Inc(Result);
+  end;
+end;
+
+function TsdEdges.AssembleContour(const first, last: TsdVector;
+  dest: PsdContour; errorAt: PsdEdge; keepDir: Boolean; start: Integer): Boolean;
+var
+  i: Integer;
+  e: PsdEdge;
+  lastPoint: TsdVector;
+begin
+  dest.AddPoint(first);
+  dest.AddPoint(last);
+  lastPoint := last;
+  repeat
+    i := start;
+    while i < List.Count do
+    begin
+      e := List.Items[i];
+      if e.tag = 0 then
+      begin
+        if e.a.Equals(lastPoint) then
+        begin
+          dest.AddPoint(e.b);
+          lastPoint := e.b;
+          e.tag := 1;
+          break;
+        end;
+        if not keepDir and e.b.Equals(lastPoint) then
+        begin
+          dest.AddPoint(e.a);
+          lastPoint := e.a;
+          e.tag := 1;
+          break;
+        end;
+      end;
+      Inc(i);
+    end;
+    if i >= List.Count then
+    begin
+      if errorAt <> nil then
+      begin
+        errorAt.a := first;
+        errorAt.b := last;
+      end;
+      exit(False);
+    end;
+  until lastPoint.Equals(first);
+  Result := True;
+end;
+
+function TsdEdges.ContainsEdgeFrom(edges: PsdEdges): Boolean;
+var
+  i: Integer;
+  e: PsdEdge;
+begin
+  for i := 0 to List.Count - 1 do
+  begin
+    e := List.Items[i];
+    if edges.ContainsEdge(e) then exit(True);
+  end;
+  Result := False;
+end;
+
+function TsdEdges.ContainsEdge(e: PsdEdge): Boolean;
+var
+  i: Integer;
+  t: PsdEdge;
+begin
+  for i := 0 to List.Count - 1 do
+  begin
+    t := List.Items[i];
+    if t.a.Equals(e.a) and t.b.Equals(e.b) then exit(True);
+    if t.b.Equals(e.a) and t.a.Equals(e.b) then exit(True);
+  end;
+  Result := False;
+end;
+
+procedure TsdEdges.CullExtraneousEdges(both: Boolean);
+var
+  i, j: Integer;
+  e, t: PsdEdge;
+begin
+  List.ClearTags;
+  for i := 0 to List.Count - 1 do
+  begin
+    e := List.Items[i];
+    for j := i + 1 to List.Count - 1 do
+    begin
+      t := List.Items[j];
+      if t.a.Equals(e.a) and t.b.Equals(e.b) then
+        t.tag := 1;
+      if t.a.Equals(e.b) and t.b.Equals(e.a) then
+      begin
+        if both then
+          e.tag := 1;
+        t.tag := 1;
+      end;
+    end;
+  end;
+  List.RemoveTagged;
+end;
+
+procedure TsdEdges.MergeCollinearSegments(const a, b: TsdVector);
+var
+  i: Integer;
+  prev, now: PsdEdge;
+begin
+  LineStart := a;
+  LineDirection := b.Minus(a);
+  List.Sort(ByAlongLineEdge);
+  List.ClearTags;
+  for i := 1 to List.Count - 1 do
+  begin
+    prev := List.Items[i - 1];
+    now := List.Items[i];
+    if prev.b.Equals(now.a) and (prev.auxA = now.auxA) then
+    begin
+      prev.tag := 1;
+      now.a := prev.a;
+    end;
+  end;
+  List.RemoveTagged;
+end;
+
+{$EndRegion}
+
+{$Region 'TsdPolygon'}
+
+procedure TsdPolygon.Init(ctx: TsdContext);
+begin
+  Self.ctx := ctx;
+  List.Init;
+  Normal.SetZero;
+end;
+
+procedure TsdPolygon.Free;
+begin
+  List.Free;
+end;
+
+function TsdPolygon.IsEmpty: Boolean;
+begin
+  Result := List.Count = 0;
+end;
+
+function TsdPolygon.ComputeNormal: TsdVector;
+begin
+  if List.Count < 1 then
+    Result.SetZero
+  else
+    Result := List.Items[0].ComputeNormal;
+end;
+
+function TsdPolygon.AddEmptyContour: PsdContour;
+var c: TsdContour;
+begin
+  c.Init;
+  Result := List.Items[List.Add(@c)];
+end;
+
+function TsdPolygon.ContainsPoint(const p: TsdVector): Boolean;
+begin
+  Result := WindingNumberForPoint(p) mod 2 = 1;
+end;
+
+function TsdPolygon.WindingNumberForPoint(const p: TsdVector): Integer;
+var
+  i: Integer;
+  sc: PsdContour;
+begin
+  Result := 0;
+  for i := 0 to List.Count - 1 do
+  begin
+    sc := List.Items[i];
+    if sc.ContainsPointProjdToNormal(normal, p) then
+      Inc(Result);
+  end;
+end;
+
+function TsdPolygon.SignedArea: Double;
+var
+  i: Integer;
+  sc: PsdContour;
+begin
+  Result := 0;
+  Normal := ComputeNormal;
+  for i := 0 to List.Count - 1 do
+  begin
+    sc := List.Items[i];
+    Result := Result + sc.SignedAreaProjdToNormal(Normal);
+  end;
+end;
+
+procedure TsdPolygon.InverseTransformInto(poly: PsdPolygon;
+  const u, v, n: TsdVector);
+var
+  i, j: Integer;
+  tsc: TsdContour;
+  c: PsdContour;
+  pt: PsdPoint;
+begin
+  for i := 0 to List.Count - 1 do
+  begin
+    c := List.Items[i];
+    tsc.Init;
+    tsc.timesEnclosed := c.timesEnclosed;
+    for j := 0 to c.List.Count - 1 do
+    begin
+      pt := c.List.Items[j];
+      tsc.AddPoint(pt.p.DotInToCsys(u, v, n));
+    end;
+    poly.List.Add(@tsc);
+  end;
+end;
+
+procedure TsdPolygon.MakeEdgesInto(edges: PsdEdges);
+var
+  i: Integer;
+begin
+  for i := 0 to List.Count - 1 do
+    List.Items[i].MakeEdgesInto(edges);
+end;
+
+procedure TsdPolygon.FixContourDirections;
+var
+  i, j: Integer;
+  sc, sct: PsdContour;
+  pt: TsdVector;
+  outer, clockwise: Boolean;
+begin
+  List.ClearTags;
+  for i := 0 to List.Count - 1 do
+  begin
+    sc := List.Items[i];
+    if sc.List.Count < 2 then continue;
+    pt := sc.List.Items[0].p.Plus(sc.List.Items[1].p).ScaledBy(0.5);
+    sc.timesEnclosed := 0;
+    outer := True;
+    for j := 0 to List.Count - 1 do
+    begin
+      if i = j then continue;
+      sct := List.Items[j];
+      if sct.ContainsPointProjdToNormal(normal, pt) then
+      begin
+        outer := not outer;
+        Inc(sc.timesEnclosed);
+      end;
+    end;
+
+    clockwise := sc.IsClockwiseProjdToNormal(normal);
+    if (clockwise and outer) or (not clockwise and not outer) then
+    begin
+      sc.Reverse;
+      sc.tag := 1;
+    end;
+  end;
+end;
+
+function TsdPolygon.SelfIntersecting(var intersectsAt: TsdVector): Boolean;
+var
+  el: TsdEdges;
+  i, cnt, inters: Integer;
+  kdtree: TsdKdEdgesTree;
+  se: PsdEdge;
+begin
+  Result := False;
+  el.Init;
+  try
+    MakeEdgesInto(@el);
+    kdtree.Init(ctx, el);
+    try
+      cnt := 1;
+      el.List.ClearTags;
+      for i := 0 to el.List.Count - 1 do
+      begin
+        se := el.List.Items[i];
+        inters := kdtree.Root.AnyEdgeCrossings(se.a, se.b, cnt, @intersectsAt);
+        if inters <> 1 then
+        begin
+          Result := True;
+          break;
+        end;
+        Inc(cnt);
+      end;
+    finally
+      kdtree.Free;
+    end
+  finally
+    el.Free;
+  end
+end;
+
+function TsdPolygon.AnyPoint: TsdVector;
+begin
+  Result := List.Items[0].List.Items[0].p;
+end;
+
+procedure TsdPolygon.OffsetInto(dest: PsdPolygon; r: Double);
+var
+  i: Integer;
+  sc, sct: PsdContour;
+begin
+  dest.List.Clear;
+  for i := 0 to List.Count - 1 do
+  begin
+    sc := List.Items[i];
+    dest.AddEmptyContour;
+    sct := dest.List.Items[dest.List.Count - 1];
+    sc.OffsetInto(sct^, r);
+  end;
+end;
+
+{$EndRegion}
+
+{$Region 'TsdContour'}
+
+procedure TsdContour.Init;
+begin
+  tag := 0;
+  TimesEnclosed := 0;
+  XminPt.SetZero;
+  List.Init;
+end;
+
+procedure TsdContour.Free;
+begin
+  List.Free;
+end;
+
+procedure TsdContour.AddPoint(const pt: TsdVector);
+var
+  p: TsdPoint;
+begin
+  p.Init(pt);
+  List.Add(@p);
+end;
+
+procedure TsdContour.MakeEdgesInto(sl: PsdEdges);
+var
+  i: Integer;
+begin
+  for i := 0 to List.Count - 2 do
+    sl.AddEdge(List.Items[i].p, List.Items[i + 1].p);
+end;
+
+procedure TsdContour.Reverse;
+begin
+  List.Reverse;
+end;
+
+function TsdContour.ComputeNormal: TsdVector;
+var
+  i: Integer;
+  n, u, v, nt: TsdVector;
+begin
+  n.SetZero;
+  for i := 0 to List.Count - 3 do
+  begin
+    u := (List.Items[i + 1].p).Minus(List.Items[i + 0].p).WithMagnitude(1);
+    v := (List.Items[i + 2].p).Minus(List.Items[i + 1].p).WithMagnitude(1);
+    nt := u.Cross(v);
+    if nt.Magnitude > n.Magnitude then
+      n := nt;
+  end;
+  Result := n.WithMagnitude(1);
+end;
+
+function TsdContour.SignedAreaProjdToNormal(const n: TsdVector): Double;
+var
+  i: Integer;
+  u, v: TsdVector;
+  p: PsdVector;
+  area, u0, v0, u1, v1: Double;
+begin
+  u := n.Normal(0);
+  v := n.Normal(1);
+  area := 0;
+  for i := 0 to List.Count - 2 do
+  begin
+    p := @List.Items[i].p;
+    u0 := p.Dot(u);
+    v0 := p.Dot(v);
+    p := @List.Items[i + 1].p;
+    u1 := p.Dot(u);
+    v1 := p.Dot(v);
+    area := area + 0.5 * (v0 + v1) * (u1 - u0);
+  end;
+  Result := area;
+end;
+
+function TsdContour.IsClockwiseProjdToNormal(const n: TsdVector): Boolean;
+begin
+  Result := (n.Magnitude < 0.01) or (SignedAreaProjdToNormal(n) < 0);
+end;
+
+function TsdContour.ContainsPointProjdToNormal(const n, p: TsdVector): Boolean;
+var
+  u, v: TsdVector;
+  up, vp, ua, va, ub, vb: Double;
+  inside: Boolean;
+  i, j: Integer;
+begin
+  u := n.Normal(0);
+  v := n.Normal(1);
+  up := p.Dot(u);
+  vp := p.Dot(v);
+  inside := False;
+  for i := 0 to List.Count - 2 do
+  begin
+    ua := List.Items[i].p.Dot(u);
+    va := List.Items[i].p.Dot(v);
+    j := (i + 1) mod (List.Count - 1);
+    ub := List.Items[j].p.Dot(u);
+    vb := List.Items[j].p.Dot(v);
+    if (((va <= vp) and (vp < vb)) or
+        ((vb <= vp) and (vp < va))) and
+         (up < (ub - ua) * (vp - va) / (vb - va) + ua) then
+      inside := not inside;
+  end;
+  Result := inside;
+end;
+
+procedure TsdContour.OffsetInto(var dest: TsdContour; r: Double);
+var
+  i, n: Integer;
+  a, b, c, dp, dn, p, pp, pn, tmp: TsdVector;
+  thetan, thetap, theta: Double;
+  px0, py0, pdx, pdy: Double;
+  nx0, ny0, ndx, ndy, x, y: Double;
+begin
+  n := List.Count - 1;
+  for i := 0 to n do
+  begin
+    a := List.Items[Wrap(i - 1, n)].p;
+    b := List.Items[Wrap(i, n)].p;
+    c := List.Items[Wrap(i + 1, n)].p;
+    dp := a.Minus(b);
+    thetap := ArcTan2(dp.y, dp.x);
+    dn := b.Minus(c);
+    thetan := ArcTan2(dn.y, dn.x);
+    if (dp.Magnitude < LengthEps) or (dn.Magnitude < LengthEps) then
+      continue;
+    if (thetan > thetap) and (thetan - thetap > Pi) then
+      thetap := thetap + 2 * Pi;
+    if (thetan < thetap) and (thetap - thetan > Pi) then
+      thetan := thetan + 2 * Pi;
+    if (Abs(thetan - thetap) < (1 * Pi) / 180) then
+    begin
+      p.Setup(b.x - r * Sin(thetap), b.y + r * Cos(thetap), 0);
+      dest.AddPoint(p);
+    end
+    else if thetan < thetap then
+    begin
+      x := 0;
+      y := 0;
+      px0 := b.x - r * Sin(thetap);
+      py0 := b.y + r * Cos(thetap);
+      pdx := Cos(thetap);
+      pdy := Sin(thetap);
+      nx0 := b.x - r * Sin(thetan);
+      ny0 := b.y + r * Cos(thetan);
+      ndx := Cos(thetan);
+      ndy := Sin(thetan);
+      IntersectionOfLines(
+        px0, py0, pdx, pdy,
+        nx0, ny0, ndx, ndy,
+        x, y);
+      tmp := TsdVector.From(x, y, 0);
+      dest.AddPoint(tmp);
+    end
+    else if (Abs(thetap - thetan) < (6 * Pi) / 180) then
+    begin
+      pp.Setup(b.x - r * Sin(thetap), b.y + r * Cos(thetap), 0);
+      dest.AddPoint(pp);
+      pn.Setup(b.x - r * Sin(thetan), b.y + r * Cos(thetan), 0);
+      dest.AddPoint(pn);
+    end
+    else
+    begin
+      theta := thetap;
+      while theta <= thetan do
+      begin
+        p.Setup(b.x - r * Sin(theta), b.y + r * Cos(theta), 0);
+        dest.AddPoint(p);
+        theta := theta + (6 * Pi) / 180;
+      end;
+    end;
+  end;
+end;
+
+procedure TsdContour.CopyInto(var dest: TsdContour);
+var
+  i: Integer;
+begin
+  for i := 0 to List.Count - 2 do
+    dest.AddPoint(List.Items[i].p);
+end;
+
+procedure TsdContour.FindPointWithMinX;
+var
+  i: Integer;
+  p: TsdVector;
+begin
+  xminPt.Setup(1E10, 1e10, 1e10);
+  for i := 0 to List.Count - 1 do
+  begin
+    p := List.Items[i].p;
+    if p.x < xminPt.x then
+      xminPt := p;
+  end;
+end;
+
+function TsdContour.AnyEdgeMidpoint: TsdVector;
+begin
+  if List.Count < 2 then
+    raise ESolidError.Create(
+      'TsdContour.AnyEdgeMidpoint: To find the midpoint you need two points');
+  Result := (List.Items[0].p.Plus(List.Items[1].p)).ScaledBy(0.5);
+end;
+
+{$EndRegion}
+
+{$Region 'TsdKdEdgesTree'}
+
+procedure TsdKdEdgesTree.Init(ctx: TsdContext; const List: TsdEdges);
+begin
+  redge := ctx.Heap.CreateRegion(SysCtx.CreateMeta<TsdEdgeLl>);
+  rnode := ctx.Heap.CreateRegion(SysCtx.CreateMeta<TsdKdNodeEdges>);
+  root := TsdKdNodeEdges.From(Self, List);
+end;
+
+procedure TsdKdEdgesTree.Free;
+begin
+  redge.Free;
+  rnode.Free;
+  root := nil;
+end;
+
+function TsdKdEdgesTree.AllocEdgeLl: PsdEdgeLl;
+begin
+  Result := redge.AddItem;
+end;
+
+function TsdKdEdgesTree.AllocNodeEdges: PsdKdNodeEdges;
+begin
+  Result := rnode.AddItem;
+end;
+
+{$EndRegion}
+
+{$Region 'TsdKdNodeEdges'}
+
+class function TsdKdNodeEdges.From(const tree: TsdKdEdgesTree;
+  const edges: TsdEdges): PsdKdNodeEdges;
+var
+  i: Integer;
+  ell, n: PsdEdgeLl;
+  e: PsdEdge;
+begin
+  ell := nil;
+  for i := 0 to edges.List.Count - 1 do
+  begin
+    e := edges.List.Items[i];
+    n := tree.AllocEdgeLl;
+    n.se := e;
+    n.next := ell;
+    ell := n;
+  end;
+  Result := From(tree, ell);
+end;
+
+class function TsdKdNodeEdges.From(const tree: TsdKdEdgesTree;
+  const ell: PsdEdgeLl): PsdKdNodeEdges;
+var
+  ptAve: TsdVector;
+  n: PsdKdNodeEdges;
+  flip, gtl, ltl, elln: PsdEdgeLl;
+  i, totaln: Integer;
+  ltln, gtln: array [0..2] of Integer;
+  badness: array [0..2] of Double;
+begin
+  n := tree.AllocNodeEdges;
+  ptAve.SetZero;
+  totaln := 0;
+  flip := ell;
+  while flip <> nil do
+  begin
+    ptAve := ptAve.Plus(flip.se.a);
+    ptAve := ptAve.Plus(flip.se.b);
+    Inc(totaln);
+    flip := flip.next;
+  end;
+  ptAve := ptAve.ScaledBy(1 / (2 * totaln));
+  for i := 0 to 2 do
+  begin
+    ltln[i] := 0;
+    gtln[i] := 0;
+  end;
+  flip := ell;
+  while flip <> nil do
+  begin
+    for i := 0 to 2 do
+    begin
+      if (flip.se.a.Element[i] < ptAve.Element[i] + KdTreeEps) or
+         (flip.se.b.Element[i] < ptAve.Element[i] + KdTreeEps) then
+        Inc(ltln[i]);
+      if (flip.se.a.Element[i] > ptAve.Element[i] - KdTreeEps) or
+         (flip.se.b.Element[i] > ptAve.Element[i] - KdTreeEps) then
+        Inc(gtln[i]);
+    end;
+    flip := flip.next;
+  end;
+  for i := 0 to 2 do
+    badness[i] := Power(ltln[i], 4) + Power(gtln[i], 4);
+
+  if (badness[0] < badness[1]) and (badness[0] < badness[2]) then
+    n.which := 0
+  else if badness[1] < badness[2] then
+    n.which := 1
+  else
+    n.which := 2;
+  n.c := ptAve.Element[n.which];
+  if (totaln < 3) or (totaln = gtln[n.which]) or (totaln = ltln[n.which]) then
+  begin
+    n.edges := ell;
+    exit(n);
+  end;
+  gtl := nil;
+  ltl := nil;
+  flip := ell;
+  while flip <> nil do
+  begin
+    if (flip.se.a.Element[n.which] < n.c + KdTreeEps) or
+       (flip.se.b.Element[n.which] < n.c + KdTreeEps) then
+    begin
+      elln := tree.AllocEdgeLl;
+      elln.se := flip.se;
+      elln.next := ltl;
+      ltl := elln;
+    end;
+    if (flip.se.a.Element[n.which] > n.c - KdTreeEps) or
+       (flip.se.b.Element[n.which] > n.c - KdTreeEps) then
+    begin
+      elln := tree.AllocEdgeLl;
+      elln.se := flip.se;
+      elln.next := gtl;
+      gtl := elln;
+    end;
+    flip := flip.next;
+  end;
+  n.lt := TsdKdNodeEdges.From(tree, ltl);
+  n.gt := TsdKdNodeEdges.From(tree, gtl);
+  Result := n;
+end;
+
+function TsdKdNodeEdges.AnyEdgeCrossings(const a, b: TsdVector;
+  cnt: Integer; pi: PsdVector; points: PsdPoints): Integer;
+var
+  inters: Integer;
+  sell: PsdEdgeLl;
+  se: PsdEdge;
+begin
+  inters := 0;
+  if (gt <> nil) and (lt <> nil) then
+  begin
+    if (a.Element[which] < c + KdTreeEps) or
+       (b.Element[which] < c + KdTreeEps) then
+      inters := inters + lt.AnyEdgeCrossings(a, b, cnt, pi, points);
+    if (a.Element[which] > c - KdTreeEps) or
+       (b.Element[which] > c - KdTreeEps) then
+      inters := inters + gt.AnyEdgeCrossings(a, b, cnt, pi, points);
+  end
+  else
+  begin
+    sell := edges;
+    while sell <> nil do
+    begin
+      se := sell.se;
+      if se.tag <> cnt then
+      begin
+        if se.EdgeCrosses(a, b, pi, points) then
+          Inc(inters);
+        se.tag := cnt;
+      end;
+      sell := sell.next
+    end;
+  end;
+  Result := inters;
 end;
 
 {$EndRegion}
