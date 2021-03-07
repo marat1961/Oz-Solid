@@ -22,7 +22,9 @@ uses
   Oz.SGL.HandleManager in '..\..\Oz-SGL\src\Oz.SGL.HandleManager.pas',
   Oz.SGL.Hash in '..\..\Oz-SGL\src\Oz.SGL.Hash.pas',
   Oz.SGL.Heap in '..\..\Oz-SGL\src\Oz.SGL.Heap.pas',
-  Oz.Solid.Utils in '..\src\Oz.Solid.Utils.pas';
+  Oz.Solid.Utils in '..\src\Oz.Solid.Utils.pas',
+  Oz.Solid.Expr in '..\src\Oz.Solid.Expr.pas',
+  Oz.Solid.Context in '..\src\Oz.Solid.Context.pas';
 
 {$R *.RES}
 

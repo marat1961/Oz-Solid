@@ -180,10 +180,12 @@ type
   TsdContext = class
   protected
     FHeap: THeapPool;
+    FExprRegion: PMemoryRegion;
     procedure Init; virtual;
   public
     constructor Create;
     destructor Destroy; override;
+    function AllocExpr: Pointer;
     procedure FreeAllTemporary;
     property Heap: THeapPool read FHeap;
   end;
@@ -693,6 +695,11 @@ end;
 {$EndRegion}
 
 {$Region 'TsdContext'}
+
+function TsdContext.AllocExpr: Pointer;
+begin
+
+end;
 
 constructor TsdContext.Create;
 begin
