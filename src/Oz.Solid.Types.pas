@@ -146,6 +146,21 @@ type
 
 {$EndRegion}
 
+{$Region 'TsdVector'}
+
+  TPolar = record
+  var
+    radius: Double;
+    theta: Double;
+    phi: Double;
+  public
+    constructor From(radius, theta, phi: Double); overload;
+    constructor From(const point: TsdVector); overload;
+    function ToVector: TsdVector;
+  end;
+
+{$EndRegion}
+
 {$Region 'TQuaternion'}
 
   TQuaternion = record
@@ -822,6 +837,34 @@ function TsdVector.Project2d(const u, v: TsdVector): T2dPoint;
 begin
   Result.x := Dot(u);
   Result.y := Dot(v);
+end;
+
+{$EndRegion}
+
+{$Region 'TPolar'}
+
+constructor TPolar.From(radius, theta, phi: Double);
+begin
+  Self.radius := radius;
+  Self.theta := theta;
+  Self.phi := phi;
+end;
+
+constructor TPolar.From(const point: TsdVector);
+begin
+
+end;
+
+function TPolar.ToVector: TsdVector;
+var
+  dxy, s, c: Double;
+begin
+  SinCos(phi, s, c);
+  dxy := radius * c;
+  Result.z := radius * s;
+  SinCos(theta, s, c);
+  Result.x := dxy * c;
+  Result.y := dxy * s;
 end;
 
 {$EndRegion}
