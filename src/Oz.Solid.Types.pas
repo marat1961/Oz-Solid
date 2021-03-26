@@ -146,16 +146,17 @@ type
 
 {$EndRegion}
 
-{$Region 'TsdVector'}
+{$Region 'TPolar: Spherical coordinate system'}
 
   TPolar = record
   var
-    radius: Double;
-    theta: Double;
-    phi: Double;
+    radius: Double;  // radial distance
+    theta: Double;   // polar angle
+    phi: Double;     // azimuthal angle
   public
     constructor From(radius, theta, phi: Double); overload;
     constructor From(const point: TsdVector); overload;
+    // Returns cartesian coordinates
     function ToVector: TsdVector;
   end;
 
@@ -852,7 +853,9 @@ end;
 
 constructor TPolar.From(const point: TsdVector);
 begin
-
+  radius := point.Magnitude;
+  theta := ArcTan2(Sqrt(Sqr(point.x) + Sqr(point.y)), point.z);
+  phi := ArcTan2(point.x, point.y);
 end;
 
 function TPolar.ToVector: TsdVector;
