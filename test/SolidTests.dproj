@@ -107,6 +107,7 @@
         <DCCReference Include="..\src\Oz.Solid.Utils.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Expr.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Context.pas"/>
+        <DCCReference Include="..\src\Oz.Solid.Matrix.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

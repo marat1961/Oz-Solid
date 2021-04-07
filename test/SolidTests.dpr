@@ -24,7 +24,8 @@ uses
   Oz.SGL.Heap in '..\..\Oz-SGL\src\Oz.SGL.Heap.pas',
   Oz.Solid.Utils in '..\src\Oz.Solid.Utils.pas',
   Oz.Solid.Expr in '..\src\Oz.Solid.Expr.pas',
-  Oz.Solid.Context in '..\src\Oz.Solid.Context.pas';
+  Oz.Solid.Context in '..\src\Oz.Solid.Context.pas',
+  Oz.Solid.Matrix in '..\src\Oz.Solid.Matrix.pas';
 
 {$R *.RES}
 
