@@ -19,6 +19,9 @@ unit Oz.Solid.Matrix;
 
 interface
 
+uses
+  System.Math;
+
 type
 
 {$Region 'TVector'}
@@ -44,13 +47,30 @@ type
     function GetSize: Integer; inline;
     // All components are 0.
     procedure MakeZero;
+    // All components are 0.
+    function Zero(size: Integer): TVector;
     // Component d is 1, all others are zero.
     procedure MakeUnit(d: Integer);
-
-    function Zero(size: Integer): TVector;
+    // Component d is 1, all others are zero.
     function GetUnit(size, d: Integer): TVector;
 
+    // Compare vectors
+    function Equals(const v: TVector): Boolean;
+    // Change the sign
+    function Negative: TVector;
+    // Linear-algebraic operations
+    function Plus(const v: TVector): TVector;
+    function Minus(const v: TVector): TVector;
+    function Scale(s: Double): TVector;
     property Items[Index: Integer]: Double read GetItem write SetItem;
+  end;
+
+{$EndRegion}
+
+{$Region 'TMatrix'}
+
+  TMatrix = class
+  public
   end;
 
 {$EndRegion}
@@ -96,18 +116,7 @@ var
   i: Integer;
 begin
   for i := 0 to High(FTuple) do
-    FTuple[i] := 0;
-end;
-
-procedure TVector.MakeUnit(d: Integer);
-var
-  i: Integer;
-begin
-  for i := 0 to High(FTuple) do
-    if i = d then
-      FTuple[d] := 1
-    else
-      FTuple[d] := 0;
+    FTuple[i] := 0.0;
 end;
 
 function TVector.Zero(size: Integer): TVector;
@@ -116,10 +125,67 @@ begin
   Result.MakeZero;
 end;
 
+procedure TVector.MakeUnit(d: Integer);
+var
+  i: Integer;
+begin
+  for i := 0 to High(FTuple) do
+    if i = d then
+      FTuple[i] := 1.0
+    else
+      FTuple[i] := 0.0;
+end;
+
 function TVector.GetUnit(size, d: Integer): TVector;
 begin
   SetLength(Result.FTuple, size);
   Result.MakeUnit(d);
+end;
+
+function TVector.Equals(const v: TVector): Boolean;
+var
+  i, n: Integer;
+begin
+  n := GetSize;
+  Result := n = v.GetSize;
+  if Result then
+    for i := 0 to High(FTuple) do
+      if not SameValue(FTuple[i], v.FTuple[i]) then
+        exit(False);
+end;
+
+function TVector.Negative: TVector;
+var
+  i: Integer;
+begin
+  for i := 0 to High(FTuple) do
+    Result.FTuple[i] := FTuple[i];
+end;
+
+function TVector.Plus(const v: TVector): TVector;
+var
+  i: Integer;
+begin
+  Assert(GetSize = v.GetSize, 'Mismatched sizes');
+  for i := 0 to High(FTuple) do
+    Result.FTuple[i] := FTuple[i] + v.FTuple[i];
+end;
+
+function TVector.Minus(const v: TVector): TVector;
+var
+  i: Integer;
+begin
+  Assert(GetSize = v.GetSize, 'Mismatched sizes');
+  for i := 0 to High(FTuple) do
+    Result.FTuple[i] := FTuple[i] - v.FTuple[i];
+end;
+
+function TVector.Scale(s: Double): TVector;
+var
+  i: Integer;
+begin
+  for i := 0 to High(FTuple) do
+    Result.FTuple[i] := FTuple[i] * s;
 end;
 
 {$EndRegion}
