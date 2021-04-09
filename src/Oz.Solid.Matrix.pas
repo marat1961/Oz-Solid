@@ -24,12 +24,12 @@ uses
 
 type
 
-  EMatrixError = class(Exception)
+  EgtError = class(Exception)
   end;
 
-{$Region 'TVector'}
+{$Region 'TgVector'}
 
-  TVector = record
+  TgVector = record
   private
     FItems: TArray<Double>;
     function GetItem(i: Integer): Double; inline;
@@ -48,28 +48,28 @@ type
     // All components are 0.
     procedure MakeZero;
     // All components are 0.
-    function Zero(size: Integer): TVector;
+    function Zero(size: Integer): TgVector;
     // Component d is 1, all others are zero.
     procedure MakeUnit(d: Integer);
     // Component d is 1, all others are zero.
-    function GetUnit(size, d: Integer): TVector;
+    function GetUnit(size, d: Integer): TgVector;
 
     // Compare vectors
-    function Equals(const v: TVector): Boolean;
+    function Equals(const v: TgVector): Boolean;
     // Change the sign
-    function Negative: TVector;
+    function Negative: TgVector;
     // Linear-algebraic operations
-    function Plus(const v: TVector): TVector;
-    function Minus(const v: TVector): TVector;
-    function Scale(s: Double): TVector;
+    function Plus(const v: TgVector): TgVector;
+    function Minus(const v: TgVector): TgVector;
+    function Scale(s: Double): TgVector;
     property Items[Index: Integer]: Double read GetItem write SetItem;
   end;
 
 {$EndRegion}
 
-{$Region 'TMatrix'}
+{$Region 'TgMatrix'}
 
-  TMatrix = record
+  TgMatrix = record
   private
     // The matrix is stored as a 1-dimensional array.
     FNumRows: Integer;
@@ -104,7 +104,7 @@ type
     // Component (r,c) is 1, all others zero.
     procedure MakeUnit(r, c: Integer);
     // Result := Self * M
-    function Multiply(const M: TMatrix): TMatrix;
+    function Multiply(const M: TgMatrix): TgMatrix;
 
     property NumRows: Integer read FNumRows;
     property NumCols: Integer read FNumCols;
@@ -118,41 +118,47 @@ type
 
 implementation
 
-{$Region 'TVector'}
+procedure CheckSize(b: Boolean);
+begin
+  if not b then
+    raise EgtError.Create('Mismatched sizes');
+end;
 
-constructor TVector.From(size: Integer);
+{$Region 'TgVector'}
+
+constructor TgVector.From(size: Integer);
 begin
   SetSize(size);
 end;
 
-constructor TVector.From(size, d: Integer);
+constructor TgVector.From(size, d: Integer);
 begin
   SetSize(size);
   MakeUnit(d);
 end;
 
-procedure TVector.SetSize(size: Integer);
+procedure TgVector.SetSize(size: Integer);
 begin
   Assert(size >= 0, 'Invalid size.');
   SetLength(FItems, size);
 end;
 
-function TVector.GetSize: Integer;
+function TgVector.GetSize: Integer;
 begin
   Result := Length(FItems);
 end;
 
-function TVector.GetItem(i: Integer): Double;
+function TgVector.GetItem(i: Integer): Double;
 begin
   Result := FItems[i];
 end;
 
-procedure TVector.SetItem(i: Integer; Value: Double);
+procedure TgVector.SetItem(i: Integer; Value: Double);
 begin
   FItems[i] := Value;
 end;
 
-procedure TVector.MakeZero;
+procedure TgVector.MakeZero;
 var
   i: Integer;
 begin
@@ -160,13 +166,13 @@ begin
     FItems[i] := 0.0;
 end;
 
-function TVector.Zero(size: Integer): TVector;
+function TgVector.Zero(size: Integer): TgVector;
 begin
   SetLength(Result.FItems, size);
   Result.MakeZero;
 end;
 
-procedure TVector.MakeUnit(d: Integer);
+procedure TgVector.MakeUnit(d: Integer);
 var
   i: Integer;
 begin
@@ -177,13 +183,13 @@ begin
       FItems[i] := 0.0;
 end;
 
-function TVector.GetUnit(size, d: Integer): TVector;
+function TgVector.GetUnit(size, d: Integer): TgVector;
 begin
   SetLength(Result.FItems, size);
   Result.MakeUnit(d);
 end;
 
-function TVector.Equals(const v: TVector): Boolean;
+function TgVector.Equals(const v: TgVector): Boolean;
 var
   i, n: Integer;
 begin
@@ -195,7 +201,7 @@ begin
         exit(False);
 end;
 
-function TVector.Negative: TVector;
+function TgVector.Negative: TgVector;
 var
   i: Integer;
 begin
@@ -203,25 +209,25 @@ begin
     Result.FItems[i] := FItems[i];
 end;
 
-function TVector.Plus(const v: TVector): TVector;
+function TgVector.Plus(const v: TgVector): TgVector;
 var
   i: Integer;
 begin
-  Assert(GetSize = v.GetSize, 'Mismatched sizes');
+  CheckSize(GetSize = v.GetSize);
   for i := 0 to High(FItems) do
     Result.FItems[i] := FItems[i] + v.FItems[i];
 end;
 
-function TVector.Minus(const v: TVector): TVector;
+function TgVector.Minus(const v: TgVector): TgVector;
 var
   i: Integer;
 begin
-  Assert(GetSize = v.GetSize, 'Mismatched sizes');
+  CheckSize(GetSize = v.GetSize);
   for i := 0 to High(FItems) do
     Result.FItems[i] := FItems[i] - v.FItems[i];
 end;
 
-function TVector.Scale(s: Double): TVector;
+function TgVector.Scale(s: Double): TgVector;
 var
   i: Integer;
 begin
@@ -231,54 +237,54 @@ end;
 
 {$EndRegion}
 
-{$Region 'TMatrix'}
+{$Region 'TgMatrix'}
 
-constructor TMatrix.From(numRows, numCols: Integer);
+constructor TgMatrix.From(numRows, numCols: Integer);
 begin
   SetSize(numRows, numCols);
 end;
 
-constructor TMatrix.From(numRows, numCols, r, c: Integer);
+constructor TgMatrix.From(numRows, numCols, r, c: Integer);
 begin
   SetSize(numRows, numCols);
   MakeUnit(r, c);
 end;
 
-procedure TMatrix.GetSize(var numRows, numCols: Integer);
+procedure TgMatrix.GetSize(var numRows, numCols: Integer);
 begin
   numRows := FNumRows;
   numCols := FNumCols;
 end;
 
-function TMatrix.GetNumCols: Integer;
+function TgMatrix.GetNumCols: Integer;
 begin
   Result := FNumCols;
 end;
 
-function TMatrix.GetNumElements: Integer;
+function TgMatrix.GetNumElements: Integer;
 begin
   Result := Length(FElements);
 end;
 
-function TMatrix.GetNumRows: Integer;
+function TgMatrix.GetNumRows: Integer;
 begin
   Result := FNumRows;
 end;
 
-procedure TMatrix.CheckIndex(r, c: Integer);
+procedure TgMatrix.CheckIndex(r, c: Integer);
 begin
   if (Cardinal(r) >= Cardinal(GetNumRows)) or
      (Cardinal(c) >= Cardinal(GetNumCols)) then
-    raise EMatrixError.Create('Invalid index');
+    raise EgtError.Create('Invalid index');
 end;
 
-function TMatrix.GetElement(r, c: Integer): PDouble;
+function TgMatrix.GetElement(r, c: Integer): PDouble;
 begin
   CheckIndex(r, c);
   Result := @FElements[c + FNumCols * r];
 end;
 
-procedure TMatrix.SetSize(numRows, numCols: Integer);
+procedure TgMatrix.SetSize(numRows, numCols: Integer);
 begin
   if (numRows > 0) and (numCols > 0) then
   begin
@@ -294,7 +300,7 @@ begin
   end;
 end;
 
-procedure TMatrix.MakeZero;
+procedure TgMatrix.MakeZero;
 var
   i: Integer;
 begin
@@ -302,20 +308,20 @@ begin
     FElements[i] := 0.0;
 end;
 
-procedure TMatrix.MakeUnit(r, c: Integer);
+procedure TgMatrix.MakeUnit(r, c: Integer);
 begin
   CheckIndex(r, c);
   MakeZero;
   Element[r, c]^ := 1.0;
 end;
 
-function TMatrix.Multiply(const M: TMatrix): TMatrix;
+function TgMatrix.Multiply(const M: TgMatrix): TgMatrix;
 var
   numCommon, r, c, i: Integer;
   p: PDouble;
 begin
-  Assert(Self.GetNumCols = M.GetNumRows, 'Mismatched sizes');
-  Result := TMatrix.From(Self.GetNumRows, M.GetNumCols);
+  CheckSize(Self.GetNumCols = M.GetNumRows);
+  Result := TgMatrix.From(Self.GetNumRows, M.GetNumCols);
   numCommon := Self.GetNumCols;
   for r := 0 to Result.GetNumRows - 1 do
   begin
