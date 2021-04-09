@@ -103,6 +103,9 @@ type
     procedure MakeZero;
     // Component (r,c) is 1, all others zero.
     procedure MakeUnit(r, c: Integer);
+    // Diagonal entries 1, others 0, even when nonsquare.
+    procedure MakeIdentity;
+    function Zero(numRows, numCols: Integer): TgMatrix;
     // Result := Self * M
     function Multiply(const M: TgMatrix): TgMatrix;
 
@@ -313,6 +316,25 @@ begin
   CheckIndex(r, c);
   MakeZero;
   Element[r, c]^ := 1.0;
+end;
+
+procedure TgMatrix.MakeIdentity;
+var
+  i, numDiagonal: Integer;
+begin
+  MakeZero;
+  if FNumRows <= FNumCols then
+    numDiagonal := FNumRows
+  else
+    numDiagonal := FNumCols;
+  for i := 0 to numDiagonal - 1 do
+    Element[i, i]^ := 1.0;
+end;
+
+function TgMatrix.Zero(numRows, numCols: Integer): TgMatrix;
+begin
+  Result := TgMatrix.From(numRows, numCols);
+  Result.MakeZero;
 end;
 
 function TgMatrix.Multiply(const M: TgMatrix): TgMatrix;
