@@ -110,8 +110,10 @@ type
     function Add(const M: TgMatrix): TgMatrix;
     // Result := Self - M
     function Minus(const M: TgMatrix): TgMatrix;
+    // Result := Self * scalar
+    function Multiply(const scalar: Double): TgMatrix; overload;
     // Result := Self * M
-    function Multiply(const M: TgMatrix): TgMatrix;
+    function Multiply(const M: TgMatrix): TgMatrix; overload;
 
     property NumRows: Integer read FNumRows;
     property NumCols: Integer read FNumCols;
@@ -343,15 +345,50 @@ end;
 
 function TgMatrix.Add(const M: TgMatrix): TgMatrix;
 var
-  i: Integer;
+  r, c: Integer;
+  p: PDouble;
 begin
   Result := TgMatrix.From(numRows, numCols);
-
+  for r := 0 to Result.GetNumRows - 1 do
+  begin
+    for c := 0 to Result.GetNumCols - 1 do
+    begin
+      p := Result.Element[r, c];
+      p^ := p^ + M.Element[r, c]^;
+    end;
+  end;
 end;
 
 function TgMatrix.Minus(const M: TgMatrix): TgMatrix;
+var
+  r, c: Integer;
+  p: PDouble;
 begin
+  Result := TgMatrix.From(numRows, numCols);
+  for r := 0 to Result.GetNumRows - 1 do
+  begin
+    for c := 0 to Result.GetNumCols - 1 do
+    begin
+      p := Result.Element[r, c];
+      p^ := p^ - M.Element[r, c]^;
+    end;
+  end;
+end;
 
+function TgMatrix.Multiply(const scalar: Double): TgMatrix;
+var
+  r, c: Integer;
+  p: PDouble;
+begin
+  Result := TgMatrix.From(numRows, numCols);
+  for r := 0 to Result.GetNumRows - 1 do
+  begin
+    for c := 0 to Result.GetNumCols - 1 do
+    begin
+      p := Result.Element[r, c];
+      p^ := p^ * scalar;
+    end;
+  end;
 end;
 
 function TgMatrix.Multiply(const M: TgMatrix): TgMatrix;
