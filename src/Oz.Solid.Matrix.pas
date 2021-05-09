@@ -106,6 +106,10 @@ type
     // Diagonal entries 1, others 0, even when nonsquare.
     procedure MakeIdentity;
     function Zero(numRows, numCols: Integer): TgMatrix;
+    // Result := Self + M
+    function Add(const M: TgMatrix): TgMatrix;
+    // Result := Self - M
+    function Minus(const M: TgMatrix): TgMatrix;
     // Result := Self * M
     function Multiply(const M: TgMatrix): TgMatrix;
 
@@ -335,6 +339,19 @@ function TgMatrix.Zero(numRows, numCols: Integer): TgMatrix;
 begin
   Result := TgMatrix.From(numRows, numCols);
   Result.MakeZero;
+end;
+
+function TgMatrix.Add(const M: TgMatrix): TgMatrix;
+var
+  i: Integer;
+begin
+  Result := TgMatrix.From(numRows, numCols);
+
+end;
+
+function TgMatrix.Minus(const M: TgMatrix): TgMatrix;
+begin
+
 end;
 
 function TgMatrix.Multiply(const M: TgMatrix): TgMatrix;
