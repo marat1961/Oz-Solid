@@ -114,6 +114,9 @@ type
     function Multiply(const scalar: Double): TgMatrix; overload;
     // Result := Self * M
     function Multiply(const M: TgMatrix): TgMatrix; overload;
+    // Result := Self * M
+    function Inverse(Invertibility: PBoolean = nil): TgMatrix;
+    function Determinante: Double;
 
     property NumRows: Integer read FNumRows;
     property NumCols: Integer read FNumCols;
@@ -121,6 +124,16 @@ type
     property NumElements: Integer read GetNumElements;
     // Returns a reference to Double value.
     property Element[r, c: Integer]: PDouble read GetElement; default;
+  end;
+
+{$EndRegion}
+
+{$Region 'TGaussianElimination'}
+
+  TGaussianElimination = record
+    class function Process(numRows: Integer; M, inverseM: TgMatrix;
+      var determinant: Double; const B, X, C: PDouble;
+      numCols: integer; Y: PDouble): Boolean; static;
   end;
 
 {$EndRegion}
@@ -215,7 +228,7 @@ var
   i: Integer;
 begin
   for i := 0 to High(FItems) do
-    Result.FItems[i] := FItems[i];
+    Result.FItems[i] := -FItems[i];
 end;
 
 function TgVector.Plus(const v: TgVector): TgVector;
@@ -413,7 +426,41 @@ begin
   end;
 end;
 
+function TgMatrix.Inverse(Invertibility: PBoolean = nil): TgMatrix;
+var
+  invM: TgMatrix;
+  determinant: Double;
+  invertible: Boolean;
+begin
+  if GetNumRows() <> GetNumCols() then
+    raise EgtError.Create('Matrix must be square.');
+  invM := TgMatrix.From(GetNumRows(), GetNumCols());
+
+  invertible := TGaussianElimination.Process(GetNumRows(), Self,
+      invM, determinant, nil, nil, nil, 0, nil);
+  if Invertibility <> nil then
+    Invertibility^ := invertible;
+  Result := invM;
+end;
+
+function TgMatrix.Determinante(): Double;
+begin
+  if GetNumRows() <> GetNumCols() then
+    raise EgtError.Create('Matrix must be square.');
+  TGaussianElimination.Process(GetNumRows(), Self, nil,
+      Result, nil, nil, nil, 0, nil);
+end;
+
 {$EndRegion}
+
+{ TGaussianElimination }
+
+class function TGaussianElimination.Process(numRows: Integer; M, inverseM: TgMatrix;
+  var determinant: Double; const B, X, C: PDouble; numCols: integer;
+  Y: PDouble): Boolean;
+begin
+
+end;
 
 end.
 
