@@ -69,6 +69,7 @@ type
 
 {$Region 'TgMatrix'}
 
+  PgMatrix = ^TgMatrix;
   TgMatrix = record
   private
     // The matrix is stored as a 1-dimensional array.
@@ -131,7 +132,15 @@ type
 {$Region 'TGaussianElimination'}
 
   TGaussianElimination = record
-    class function Process(numRows: Integer; M, inverseM: TgMatrix;
+  private
+    // Support for copying source to target or to set target to zero.
+    // If source is nil, then target is set to zero; otherwise source is
+    // copied to target.  This function hides the type traits used to
+    // determine whether Double is native floating-point or otherwise (such
+    // as BSNumber or BSRational).
+    class procedure Setv(numElements: Integer; source, target: PDouble); static;
+  public
+    class function Process(numRows: Integer; M, inverseM: PgMatrix;
       var determinant: Double; const B, X, C: PDouble;
       numCols: integer; Y: PDouble): Boolean; static;
   end;
@@ -436,8 +445,8 @@ begin
     raise EgtError.Create('Matrix must be square.');
   invM := TgMatrix.From(GetNumRows(), GetNumCols());
 
-  invertible := TGaussianElimination.Process(GetNumRows(), Self,
-      invM, determinant, nil, nil, nil, 0, nil);
+  invertible := TGaussianElimination.Process(GetNumRows(), @Self,
+      @invM, determinant, nil, nil, nil, 0, nil);
   if Invertibility <> nil then
     Invertibility^ := invertible;
   Result := invM;
@@ -447,20 +456,246 @@ function TgMatrix.Determinante(): Double;
 begin
   if GetNumRows() <> GetNumCols() then
     raise EgtError.Create('Matrix must be square.');
-  TGaussianElimination.Process(GetNumRows(), Self, nil,
+  TGaussianElimination.Process(GetNumRows(), @Self, nil,
       Result, nil, nil, nil, 0, nil);
 end;
 
 {$EndRegion}
 
-{ TGaussianElimination }
+{$Region 'TGaussianElimination'}
 
-class function TGaussianElimination.Process(numRows: Integer; M, inverseM: TgMatrix;
+class function TGaussianElimination.Process(numRows: Integer; M, inverseM: PgMatrix;
   var determinant: Double; const B, X, C: PDouble; numCols: integer;
   Y: PDouble): Boolean;
+const
+  zero: Double = 0;
+  one: Double = 1;
+var
+  numElements, i0, i1, i2, row, col: Integer;
+  wantInverse, odd: Boolean;
+  localInverseM: TArray<Double>;
+  colIndex, rowIndex, pivoted: TArray<Integer>;
+  maxValue: Double;
 begin
+  if (numRows <= 0) or (M <> nil) or
+     ((B <> nil) <> (X <> nil)) or
+     ((C <> nil) <> (Y <> nil)) or
+     ((C <> nil) and (numCols < 1)) then
+    raise EgtError.Create('Invalid input.');
 
+  numElements := numRows * numRows;
+  wantInverse := inverseM <> nil;
+
+  if not wantInverse then
+  begin
+    SetLength(localInverseM, numElements);
+    inverseM.FElements := localInverseM;
+  end;
+  Setv(numElements, @M.FElements[0], @inverseM.FElements[0]);
+
+  if B <> nil then
+    Setv(numRows, B, X);
+
+  if C <> nil  then
+    Setv(numRows * numCols, C, Y);
+
+  SetLength(colIndex, numRows);
+  SetLength(rowIndex, numRows);
+  SetLength(pivoted, numRows);
+
+  odd := False;
+  determinant := one;
+
+  // Elimination by full pivoting.
+  row := 0; col := 0;
+  for i0 := 0 to numRows - 1 do
+  begin
+    // Search matrix (excluding pivoted rows) for maximum absolute entry.
+    maxValue := zero;
+    for i1 := 0 to numRows - 1 do
+    begin
+      if pivoted[i1] = nil then
+      begin
+        for i2 := 0 to numRows - 1 do
+        begin
+          if not pivoted[i2] then
+          begin
+            Double value = matInvM(i1, i2);
+            Double absValue = (value >= zero ? value : -value);
+            if (absValue > maxValue)
+            begin
+              maxValue = absValue;
+              row = i1;
+              col = i2;
+            end;
+          end;
+        end;
+      end;
+    end;
+
+    if (maxValue = zero)
+    begin
+        // The matrix is not invertible.
+        if (wantInverse)
+        begin
+            Set(numElements, nil, inverseM);
+        end;
+        determinant = zero;
+
+        if (B)
+        begin
+            Set(numRows, nil, X);
+        end;
+
+        if (C)
+        begin
+            Set(numRows * numCols, nil, Y);
+        end;
+        return false;
+    end;
+
+    pivoted[col] = true;
+
+    // Swap rows so that the pivot entry is in row 'col'.
+    if (row <> col)
+    begin
+        odd = not odd;
+        for (Integer i = 0; i < numRows; ++i)
+        begin
+            std::swap(matInvM(row, i), matInvM(col, i));
+        end;
+
+        if (B)
+        begin
+            std::swap(X[row], X[col]);
+        end;
+
+        if (C)
+        begin
+            for (Integer i = 0; i < numCols; ++i)
+            begin
+                std::swap(matY(row, i), matY(col, i));
+            end;
+        end;
+    end;
+
+    // Keep track of the permutations of the rows.
+    rowIndex[i0] = row;
+    colIndex[i0] = col;
+
+    // Scale the row so that the pivot entry is 1.
+    Double diagonal = matInvM(col, col);
+    determinant *= diagonal;
+    Double inv = one / diagonal;
+    matInvM(col, col) = one;
+    for (i2 = 0; i2 < numRows; ++i2)
+    begin
+        matInvM(col, i2) *= inv;
+    end;
+
+    if (B)
+    begin
+        X[col] *= inv;
+    end;
+
+    if (C)
+    begin
+        for (i2 = 0; i2 < numCols; ++i2)
+        begin
+            matY(col, i2) *= inv;
+        end;
+    end;
+
+    // Zero out the pivot column locations in the other rows.
+    for (i1 = 0; i1 < numRows; ++i1)
+    begin
+        if (i1 <> col)
+        begin
+            Double save = matInvM(i1, col);
+            matInvM(i1, col) = zero;
+            for (i2 = 0; i2 < numRows; ++i2)
+            begin
+                matInvM(i1, i2) -= matInvM(col, i2) * save;
+            end;
+
+            if (B)
+            begin
+                X[i1] -= X[col] * save;
+            end;
+
+            if (C)
+            begin
+                for (i2 = 0; i2 < numCols; ++i2)
+                begin
+                    matY(i1, i2) -= matY(col, i2) * save;
+                end;
+            end;
+        end;
+      end;
+    end;
+
+    if (wantInverse)
+    begin
+        // Reorder rows to undo any permutations in Gaussian elimination.
+        for (i1 = numRows - 1; i1 >= 0; --i1)
+        begin
+            if (rowIndex[i1] <> colIndex[i1])
+            begin
+                for (i2 = 0; i2 < numRows; ++i2)
+                begin
+                    std::swap(matInvM(i2, rowIndex[i1]),
+                        matInvM(i2, colIndex[i1]));
+                end;
+            end;
+        end;
+    end;
+
+    if (odd)
+    begin
+        determinant = -determinant;
+    end;
+
+    return true;
 end;
+
+class procedure TGaussianElimination.Setv(numElements: Integer; source, target: PDouble);
+begin
+    if (std::is_floating_point<Double>() = std::true_type())
+    begin
+        // Fast set/copy for native floating-point.
+        size_t numBytes = numElements * sizeof(Double);
+        if (source)
+        begin
+            std::memcpy(target, source, numBytes);
+        end;
+        else
+        begin
+            std::memset(target, 0, numBytes);
+        end;
+    end;
+    else
+    begin
+        // The inputs are not std containers, so ensure assignment works
+        // correctly.
+        if (source)
+        begin
+            for (Integer i = 0; i < numElements; ++i)
+            begin
+                target[i] = source[i];
+            end;
+        end;
+        else
+        begin
+            Double const zero = (Double)0;
+            for (Integer i = 0; i < numElements; ++i)
+            begin
+                target[i] = zero;
+            end;
+        end;
+    end;
+end;
+
+{$EndRegion}
 
 end.
 
