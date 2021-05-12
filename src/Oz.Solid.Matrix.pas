@@ -1,20 +1,20 @@
 (* Oz Solid Library for Pascal
- * Copyright (c) 2020 Marat Shaimardanov
- *
- * This file is part of Oz Solid Library for Pascal
- * is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This file is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this file. If not, see <https://www.gnu.org/licenses/>.
- *)
+  * Copyright (c) 2020 Marat Shaimardanov
+  *
+  * This file is part of Oz Solid Library for Pascal
+  * is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation, either version 3 of the License, or
+  * (at your option) any later version.
+  *
+  * This file is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this file. If not, see <https://www.gnu.org/licenses/>.
+*)
 unit Oz.Solid.Matrix;
 
 interface
@@ -62,14 +62,14 @@ type
     function Plus(const v: TgVector): TgVector;
     function Minus(const v: TgVector): TgVector;
     function Scale(s: Double): TgVector;
-    property Items[Index: Integer]: Double read GetItem write SetItem;
+    property Items[index: Integer]: Double read GetItem write SetItem;
   end;
 
 {$EndRegion}
-
 {$Region 'TgMatrix'}
 
   PgMatrix = ^TgMatrix;
+
   TgMatrix = record
   private
     // The matrix is stored as a 1-dimensional array.
@@ -107,20 +107,20 @@ type
     // Diagonal entries 1, others 0, even when nonsquare.
     procedure MakeIdentity;
     function Zero(numRows, numCols: Integer): TgMatrix;
-    // Result := Self + M
-    function Add(const M: TgMatrix): TgMatrix;
-    // Result := Self - M
-    function Minus(const M: TgMatrix): TgMatrix;
+    // Result := Self + m
+    function Add(const m: TgMatrix): TgMatrix;
+    // Result := Self - m
+    function Minus(const m: TgMatrix): TgMatrix;
     // Result := Self * scalar
     function Multiply(const scalar: Double): TgMatrix; overload;
-    // Result := Self * M
-    function Multiply(const M: TgMatrix): TgMatrix; overload;
-    // Result := Self * M
+    // Result := Self * m
+    function Multiply(const m: TgMatrix): TgMatrix; overload;
+    // Result := Self * m
     function Inverse(Invertibility: PBoolean = nil): TgMatrix;
     function Determinante: Double;
 
-    property NumRows: Integer read FNumRows;
-    property NumCols: Integer read FNumCols;
+    property numRows: Integer read FNumRows;
+    property numCols: Integer read FNumCols;
     // Returns a total number of Elements.
     property NumElements: Integer read GetNumElements;
     // Returns a reference to Double value.
@@ -128,7 +128,6 @@ type
   end;
 
 {$EndRegion}
-
 {$Region 'TGaussianElimination'}
 
   TGaussianElimination = record
@@ -138,11 +137,12 @@ type
     // copied to target.  This function hides the type traits used to
     // determine whether Double is native floating-point or otherwise (such
     // as BSNumber or BSRational).
-    class procedure Setv(numElements: Integer; source, target: PDouble); static;
+    class procedure Setv(NumElements: Integer;
+      source, target: PgMatrix); static;
   public
-    class function Process(numRows: Integer; M, inverseM: PgMatrix;
-      var determinant: Double; const B, X, C: PDouble;
-      numCols: integer; Y: PDouble): Boolean; static;
+    class function Process(numRows: Integer; m, inverseM: PgMatrix;
+      var determinant: Double; const b, x, c: PDouble; numCols: Integer;
+      y: PDouble): Boolean; static;
   end;
 
 {$EndRegion}
@@ -184,16 +184,16 @@ begin
   Result := FItems[i];
 end;
 
-procedure TgVector.SetItem(i: Integer; Value: Double);
+procedure TgVector.SetItem(i: Integer; value: Double);
 begin
-  FItems[i] := Value;
+  FItems[i] := value;
 end;
 
 procedure TgVector.MakeZero;
 var
   i: Integer;
 begin
-  for i := 0 to High(FItems) do
+  for i := 0 to high(FItems) do
     FItems[i] := 0.0;
 end;
 
@@ -207,7 +207,7 @@ procedure TgVector.MakeUnit(d: Integer);
 var
   i: Integer;
 begin
-  for i := 0 to High(FItems) do
+  for i := 0 to high(FItems) do
     if i = d then
       FItems[i] := 1.0
     else
@@ -227,7 +227,7 @@ begin
   n := GetSize;
   Result := n = v.GetSize;
   if Result then
-    for i := 0 to High(FItems) do
+    for i := 0 to high(FItems) do
       if not SameValue(FItems[i], v.FItems[i]) then
         exit(False);
 end;
@@ -236,7 +236,7 @@ function TgVector.Negative: TgVector;
 var
   i: Integer;
 begin
-  for i := 0 to High(FItems) do
+  for i := 0 to high(FItems) do
     Result.FItems[i] := -FItems[i];
 end;
 
@@ -245,7 +245,7 @@ var
   i: Integer;
 begin
   CheckSize(GetSize = v.GetSize);
-  for i := 0 to High(FItems) do
+  for i := 0 to high(FItems) do
     Result.FItems[i] := FItems[i] + v.FItems[i];
 end;
 
@@ -254,7 +254,7 @@ var
   i: Integer;
 begin
   CheckSize(GetSize = v.GetSize);
-  for i := 0 to High(FItems) do
+  for i := 0 to high(FItems) do
     Result.FItems[i] := FItems[i] - v.FItems[i];
 end;
 
@@ -262,12 +262,11 @@ function TgVector.Scale(s: Double): TgVector;
 var
   i: Integer;
 begin
-  for i := 0 to High(FItems) do
+  for i := 0 to high(FItems) do
     Result.FItems[i] := FItems[i] * s;
 end;
 
 {$EndRegion}
-
 {$Region 'TgMatrix'}
 
 constructor TgMatrix.From(numRows, numCols: Integer);
@@ -305,7 +304,7 @@ end;
 procedure TgMatrix.CheckIndex(r, c: Integer);
 begin
   if (Cardinal(r) >= Cardinal(GetNumRows)) or
-     (Cardinal(c) >= Cardinal(GetNumCols)) then
+    (Cardinal(c) >= Cardinal(GetNumCols)) then
     raise EgtError.Create('Invalid index');
 end;
 
@@ -335,7 +334,7 @@ procedure TgMatrix.MakeZero;
 var
   i: Integer;
 begin
-  for i := 0 to High(FElements) do
+  for i := 0 to high(FElements) do
     FElements[i] := 0.0;
 end;
 
@@ -365,7 +364,7 @@ begin
   Result.MakeZero;
 end;
 
-function TgMatrix.Add(const M: TgMatrix): TgMatrix;
+function TgMatrix.Add(const m: TgMatrix): TgMatrix;
 var
   r, c: Integer;
   p: PDouble;
@@ -376,12 +375,12 @@ begin
     for c := 0 to Result.GetNumCols - 1 do
     begin
       p := Result.Element[r, c];
-      p^ := p^ + M.Element[r, c]^;
+      p^ := p^ + m.Element[r, c]^;
     end;
   end;
 end;
 
-function TgMatrix.Minus(const M: TgMatrix): TgMatrix;
+function TgMatrix.Minus(const m: TgMatrix): TgMatrix;
 var
   r, c: Integer;
   p: PDouble;
@@ -392,7 +391,7 @@ begin
     for c := 0 to Result.GetNumCols - 1 do
     begin
       p := Result.Element[r, c];
-      p^ := p^ - M.Element[r, c]^;
+      p^ := p^ - m.Element[r, c]^;
     end;
   end;
 end;
@@ -413,13 +412,13 @@ begin
   end;
 end;
 
-function TgMatrix.Multiply(const M: TgMatrix): TgMatrix;
+function TgMatrix.Multiply(const m: TgMatrix): TgMatrix;
 var
   numCommon, r, c, i: Integer;
   p: PDouble;
 begin
-  CheckSize(Self.GetNumCols = M.GetNumRows);
-  Result := TgMatrix.From(Self.GetNumRows, M.GetNumCols);
+  CheckSize(Self.GetNumCols = m.GetNumRows);
+  Result := TgMatrix.From(Self.GetNumRows, m.GetNumCols);
   numCommon := Self.GetNumCols;
   for r := 0 to Result.GetNumRows - 1 do
   begin
@@ -429,7 +428,7 @@ begin
       for i := 0 to numCommon - 1 do
       begin
         p := Result.Element[r, c];
-        p^ := p^ + p^ * M.Element[i, c]^;
+        p^ := p^ + p^ * m.Element[i, c]^;
       end;
     end;
   end;
@@ -445,8 +444,8 @@ begin
     raise EgtError.Create('Matrix must be square.');
   invM := TgMatrix.From(GetNumRows(), GetNumCols());
 
-  invertible := TGaussianElimination.Process(GetNumRows(), @Self,
-      @invM, determinant, nil, nil, nil, 0, nil);
+  invertible := TGaussianElimination.Process(GetNumRows(), @Self, @invM,
+    determinant, nil, nil, nil, 0, nil);
   if Invertibility <> nil then
     Invertibility^ := invertible;
   Result := invM;
@@ -456,246 +455,196 @@ function TgMatrix.Determinante(): Double;
 begin
   if GetNumRows() <> GetNumCols() then
     raise EgtError.Create('Matrix must be square.');
-  TGaussianElimination.Process(GetNumRows(), @Self, nil,
-      Result, nil, nil, nil, 0, nil);
+  TGaussianElimination.Process(GetNumRows(), @Self, nil, Result, nil, nil,
+    nil, 0, nil);
 end;
 
 {$EndRegion}
-
 {$Region 'TGaussianElimination'}
 
-class function TGaussianElimination.Process(numRows: Integer; M, inverseM: PgMatrix;
-  var determinant: Double; const B, X, C: PDouble; numCols: integer;
-  Y: PDouble): Boolean;
+class function TGaussianElimination.Process(numRows: Integer;
+  m, inverseM: PgMatrix; var determinant: Double; const b, x, c: PDouble;
+  numCols: Integer; y: PDouble): Boolean;
 const
-  zero: Double = 0;
+  Zero: Double = 0;
   one: Double = 1;
 var
-  numElements, i0, i1, i2, row, col: Integer;
+  NumElements, i0, i1, i2, row, col: Integer;
   wantInverse, odd: Boolean;
   localInverseM: TArray<Double>;
   colIndex, rowIndex, pivoted: TArray<Integer>;
-  maxValue: Double;
+  maxValue, value, absValue, diagonal, inv, save: Double;
+  matInvM, matY: PgMatrix;
 begin
-  if (numRows <= 0) or (M <> nil) or
-     ((B <> nil) <> (X <> nil)) or
-     ((C <> nil) <> (Y <> nil)) or
-     ((C <> nil) and (numCols < 1)) then
+  if (numRows <= 0) or (m <> nil) or ((b <> nil) <> (x <> nil)) or
+    ((c <> nil) <> (y <> nil)) or ((c <> nil) and (numCols < 1)) then
     raise EgtError.Create('Invalid input.');
 
-  numElements := numRows * numRows;
+  NumElements := numRows * numRows;
   wantInverse := inverseM <> nil;
 
   if not wantInverse then
   begin
-    SetLength(localInverseM, numElements);
+    SetLength(localInverseM, NumElements);
     inverseM.FElements := localInverseM;
   end;
-  Setv(numElements, @M.FElements[0], @inverseM.FElements[0]);
-
-  if B <> nil then
-    Setv(numRows, B, X);
-
-  if C <> nil  then
-    Setv(numRows * numCols, C, Y);
+  Setv(NumElements, @m.FElements[0], @inverseM.FElements[0]);
+  if b <> nil then
+    Setv(numRows, b, x);
+  if c <> nil then
+    Setv(numRows * numCols, c, y);
+  // SetLength(matInvM, numRows, numRows, inverseM);
+  // SetLength(matY, numRows, numCols, Y);
 
   SetLength(colIndex, numRows);
   SetLength(rowIndex, numRows);
   SetLength(pivoted, numRows);
-
   odd := False;
   determinant := one;
-
   // Elimination by full pivoting.
-  row := 0; col := 0;
+  row := 0;
+  col := 0;
   for i0 := 0 to numRows - 1 do
   begin
     // Search matrix (excluding pivoted rows) for maximum absolute entry.
-    maxValue := zero;
+    maxValue := Zero;
     for i1 := 0 to numRows - 1 do
     begin
-      if pivoted[i1] = nil then
+      if pivoted[i1] <> 0 then
       begin
         for i2 := 0 to numRows - 1 do
         begin
-          if not pivoted[i2] then
+          if pivoted[i2] <> 0 then
           begin
-            Double value = matInvM(i1, i2);
-            Double absValue = (value >= zero ? value : -value);
-            if (absValue > maxValue)
+            value := matInvM.Element[i1, i2]^;
+            if value >= Zero then
+              absValue := value
+            else
+              absValue := -value;
+            if absValue > maxValue then
             begin
-              maxValue = absValue;
-              row = i1;
-              col = i2;
+              maxValue := absValue;
+              row := i1;
+              col := i2;
             end;
           end;
         end;
       end;
     end;
 
-    if (maxValue = zero)
+    if maxValue = Zero then
     begin
-        // The matrix is not invertible.
-        if (wantInverse)
-        begin
-            Set(numElements, nil, inverseM);
-        end;
-        determinant = zero;
+      // The matrix is not invertible.
+      if wantInverse then
+        Setv(NumElements, nil, inverseM);
+      determinant := Zero;
 
-        if (B)
-        begin
-            Set(numRows, nil, X);
-        end;
+      if b = 0 then
+        Setv(numRows, nil, x);
 
-        if (C)
-        begin
-            Set(numRows * numCols, nil, Y);
-        end;
-        return false;
+      if c then
+        Setv(numRows * numCols, nil, y);
+      exit(False);
     end;
 
-    pivoted[col] = true;
+    pivoted[col] := True;
 
     // Swap rows so that the pivot entry is in row 'col'.
-    if (row <> col)
+    if row <> col then
     begin
-        odd = not odd;
-        for (Integer i = 0; i < numRows; ++i)
-        begin
-            std::swap(matInvM(row, i), matInvM(col, i));
-        end;
+      odd = not odd;
+      for i := 0 to numRows - 1 do
+        Swap(matInvM(row, i), matInvM(col, i));
 
-        if (B)
-        begin
-            std::swap(X[row], X[col]);
-        end;
+      if b <> 0 then
+        Swap(x[row], x[col]);
 
-        if (C)
-        begin
-            for (Integer i = 0; i < numCols; ++i)
-            begin
-                std::swap(matY(row, i), matY(col, i));
-            end;
-        end;
+      if c <> 0 then
+        for i := 0 to numCols - 1 do
+          Swap(matY(row, i), matY(col, i));
+    end;
+  end;
+
+  // Keep track of the permutations of the rows.
+  rowIndex[i0] := row;
+  colIndex[i0] := col;
+
+  // Scale the row so that the pivot entry is 1.
+  diagonal := matInvM(col, col);
+  determinant := determinant * diagonal;
+  inv := one / diagonal;
+  matInvM(col, col) := one;
+  for i2 := 0 to numRows - 1 do
+    matInvM(col, i2) := matInvM(col, i2) * inv;
+
+  if b <> 0 then
+    x[col] := x[col] * inv;
+
+  if c <> 0 then
+    for i2 := 0 to numCols - 1 do
+      matY(col, i2) := matY(col, i2) * inv;
+
+  // Zero out the pivot column locations in the other rows.
+  for i1 := 0 to i1 < numRows - 1 do
+    if i1 <> col then
+    begin
+      save := matInvM(i1, col);
+      matInvM(i1, col) := Zero;
+      for i2 := 0 to i2 < numRows - 1 do
+        matInvM(i1, i2) := matInvM(i1, i2) - matInvM(col, i2) * save;
+      if b <> 0 then
+        x[i1] := x[i1] - x[col] * save;
+
+      if c <> 0 then
+        for i2 := 0 to numCols - 1 do
+          matY(i1, i2) := matY(i1, i2) - matY(col, i2) * save;
     end;
 
-    // Keep track of the permutations of the rows.
-    rowIndex[i0] = row;
-    colIndex[i0] = col;
-
-    // Scale the row so that the pivot entry is 1.
-    Double diagonal = matInvM(col, col);
-    determinant *= diagonal;
-    Double inv = one / diagonal;
-    matInvM(col, col) = one;
-    for (i2 = 0; i2 < numRows; ++i2)
+  if wantInverse then
+  begin
+    // Reorder rows to undo any permutations in Gaussian elimination.
+    for i1 := numRows - 1 downto 0 do
     begin
-        matInvM(col, i2) *= inv;
-    end;
-
-    if (B)
-    begin
-        X[col] *= inv;
-    end;
-
-    if (C)
-    begin
-        for (i2 = 0; i2 < numCols; ++i2)
-        begin
-            matY(col, i2) *= inv;
-        end;
-    end;
-
-    // Zero out the pivot column locations in the other rows.
-    for (i1 = 0; i1 < numRows; ++i1)
-    begin
-        if (i1 <> col)
-        begin
-            Double save = matInvM(i1, col);
-            matInvM(i1, col) = zero;
-            for (i2 = 0; i2 < numRows; ++i2)
-            begin
-                matInvM(i1, i2) -= matInvM(col, i2) * save;
-            end;
-
-            if (B)
-            begin
-                X[i1] -= X[col] * save;
-            end;
-
-            if (C)
-            begin
-                for (i2 = 0; i2 < numCols; ++i2)
-                begin
-                    matY(i1, i2) -= matY(col, i2) * save;
-                end;
-            end;
-        end;
+      if rowIndex[i1] <> colIndex[i1] then
+      begin
+        for i2 := 0 to numRows - 1 do
+          Swap(matInvM(i2, rowIndex[i1]), matInvM(i2, colIndex[i1]));
       end;
     end;
+  end;
 
-    if (wantInverse)
-    begin
-        // Reorder rows to undo any permutations in Gaussian elimination.
-        for (i1 = numRows - 1; i1 >= 0; --i1)
-        begin
-            if (rowIndex[i1] <> colIndex[i1])
-            begin
-                for (i2 = 0; i2 < numRows; ++i2)
-                begin
-                    std::swap(matInvM(i2, rowIndex[i1]),
-                        matInvM(i2, colIndex[i1]));
-                end;
-            end;
-        end;
-    end;
+  if odd then
+    determinant := -determinant;
 
-    if (odd)
-    begin
-        determinant = -determinant;
-    end;
-
-    return true;
+  Result := True;
 end;
 
-class procedure TGaussianElimination.Setv(numElements: Integer; source, target: PDouble);
+class procedure TGaussianElimination.Setv(NumElements: Integer;
+  source, target: PgMatrix); static;
+var
+  i: Integer;
 begin
-    if (std::is_floating_point<Double>() = std::true_type())
-    begin
-        // Fast set/copy for native floating-point.
-        size_t numBytes = numElements * sizeof(Double);
-        if (source)
-        begin
-            std::memcpy(target, source, numBytes);
-        end;
-        else
-        begin
-            std::memset(target, 0, numBytes);
-        end;
-    end;
+  if TStd.is_floating_point<Double> = TStd.true_type() then
+  begin
+    // Fast set/copy for native floating-point.
+    size_t numBytes = NumElements * sizeof(Double);
+    if source <> nil then
+      TStd.memcpy(target, source, numBytes)
     else
-    begin
-        // The inputs are not std containers, so ensure assignment works
-        // correctly.
-        if (source)
-        begin
-            for (Integer i = 0; i < numElements; ++i)
-            begin
-                target[i] = source[i];
-            end;
-        end;
-        else
-        begin
-            Double const zero = (Double)0;
-            for (Integer i = 0; i < numElements; ++i)
-            begin
-                target[i] = zero;
-            end;
-        end;
-    end;
+      TStd.memset(target, 0, numBytes)
+  end
+  else
+  begin
+    // The inputs are not std containers, so ensure assignment works correctly.
+    if source <> nil then
+      for i := 0 to NumElements - 1 do
+        target[i] = source[i]
+    else
+      for i := 0 to NumElements - 1 do
+        target[i] := 0;
+  end;
 end;
 
 {$EndRegion}
 
 end.
-
