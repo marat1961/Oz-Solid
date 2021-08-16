@@ -62,7 +62,7 @@ type
     function Plus(const v: TgVector): TgVector;
     function Minus(const v: TgVector): TgVector;
     function Scale(s: Double): TgVector;
-    property Items[index: Integer]: PDouble read GetItem;
+    property Items[index: Integer]: PDouble read GetItem; default;
   end;
 
 {$EndRegion}
