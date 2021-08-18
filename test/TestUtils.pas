@@ -112,18 +112,28 @@ type
 
 {$EndRegion}
 
+{$Region 'TestMatrix'}
+
+  TestMatrix = class(TTestCase)
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test;
+  end;
+
+{$EndRegion}
+
 implementation
 
 {$Region 'Test2dPoint'}
 
 procedure Test2dPoint.SetUp;
 begin
-  inherited;
 end;
 
 procedure Test2dPoint.TearDown;
 begin
-  inherited;
 end;
 
 procedure Test2dPoint.TestCollinearity;
@@ -260,12 +270,10 @@ end;
 
 procedure TestSvg.SetUp;
 begin
-  inherited;
 end;
 
 procedure TestSvg.TearDown;
 begin
-  inherited;
 end;
 
 procedure TestSvg.TestGenRect;
@@ -308,13 +316,11 @@ end;
 
 procedure TestEarTri.SetUp;
 begin
-  inherited;
 end;
 
 procedure TestEarTri.TearDown;
 begin
   EarTri.Free;
-  inherited;
 end;
 
 procedure TestEarTri.TestTri;
@@ -347,12 +353,10 @@ end;
 
 procedure TestDelaunayTri.SetUp;
 begin
-  inherited;
 end;
 
 procedure TestDelaunayTri.TearDown;
 begin
-  inherited;
   Tri.Free;
 end;
 
@@ -376,12 +380,10 @@ end;
 
 procedure TestPolygon.SetUp;
 begin
-  inherited;
 end;
 
 procedure TestPolygon.TearDown;
 begin
-  inherited;
 end;
 
 procedure TestPolygon.TestSqSq;
@@ -399,14 +401,10 @@ end;
 
 procedure TestBool.SetUp;
 begin
-  inherited;
-
 end;
 
 procedure TestBool.TearDown;
 begin
-  inherited;
-
 end;
 
 procedure TestBool.Test;
@@ -474,7 +472,31 @@ end;
 
 {$EndRegion}
 
+{$Region 'TestMatrix'}
+
+procedure TestMatrix.SetUp;
+begin
+
+end;
+
+procedure TestMatrix.TearDown;
+begin
+end;
+
+procedure TestMatrix.Test;
+begin
+{
+  2x + y - 1z = 8
+ -3x - y + 2z = -11
+ -2z + y + 2z = -3
+x = 2, y = 3, z = -1
+}
+end;
+
+{$EndRegion}
+
 initialization
+  RegisterTest(TestMatrix.Suite);
   RegisterTest(TestPolygon.Suite);
   RegisterTest(TestDelaunayTri.Suite);
   RegisterTest(TestEarTri.Suite);

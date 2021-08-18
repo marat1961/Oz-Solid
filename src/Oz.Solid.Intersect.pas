@@ -249,7 +249,7 @@ end;
 
 constructor TsdTriangle.From(const meta: TsfTriMeta; const a, b, c: TsdVector);
 begin
-  Fillchar(Self, sizeof(Self), 0);
+  FillChar(Self, sizeof(Self), 0);
   Self.meta := meta;
   Self.a := a;
   Self.b := b;
