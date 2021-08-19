@@ -23,7 +23,8 @@ interface
 uses
   System.Classes, System.SysUtils, System.Math, TestFramework,
   Oz.Solid.Types, Oz.Solid.Intersect, Oz.Solid.Svg, Oz.Solid.VectorInt,
-  Oz.Solid.Boolean, Oz.Solid.EarTri, Oz.Solid.DelaunayTri, Oz.Solid.Polygon;
+  Oz.Solid.Boolean, Oz.Solid.EarTri, Oz.Solid.DelaunayTri, Oz.Solid.Polygon,
+  Oz.Solid.Matrix;
 
 {$Region 'Test2dPoint'}
 
@@ -476,7 +477,6 @@ end;
 
 procedure TestMatrix.SetUp;
 begin
-
 end;
 
 procedure TestMatrix.TearDown;
@@ -485,6 +485,7 @@ end;
 
 procedure TestMatrix.Test;
 begin
+
 {
   2x + y - 1z = 8
  -3x - y + 2z = -11

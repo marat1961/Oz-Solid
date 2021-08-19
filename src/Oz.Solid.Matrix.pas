@@ -113,6 +113,8 @@ type
     function Minus(const m: TgMatrix): TgMatrix;
     // Result := Self * scalar
     function Multiply(const scalar: Double): TgMatrix; overload;
+    // Result := Self * v
+    function Multiply(const v: TgVector): TgVector; overload;
     // Result := Self * m
     function Multiply(const m: TgMatrix): TgMatrix; overload;
     // Result := Self * m
@@ -150,6 +152,39 @@ type
     class function Process(numRows: Integer; m, inverseM: PgMatrix;
       var determinant: Double; const b, x, c: PgVector;
       numCols: Integer; y: PgVector): Boolean; static;
+  end;
+
+{$EndRegion}
+
+{$Region 'TVector2'}
+
+  TVector2 = record
+  var
+    v: TgVector;
+  public
+    class function From: TVector2; static;
+  end;
+
+{$EndRegion}
+
+{$Region 'TMatrix2x2'}
+
+  TMatrix2x2 = record
+  var
+    m: TgMatrix;
+  public
+    class function From: TMatrix2x2; static;
+    function Inverse(invertibility: PBoolean): TMatrix2x2;
+  end;
+
+{$EndRegion}
+
+{$Region 'TLinearSystem'}
+
+  TLinearSystem = record
+  public
+    // Solve systems by inverting the matrix directly.
+    function Solve(const A: TMatrix2x2; const B: TVector2; var X: TVector2): Boolean;
   end;
 
 {$EndRegion}
@@ -415,6 +450,21 @@ begin
   end;
 end;
 
+function TgMatrix.Multiply(const v: TgVector): TgVector;
+var
+  r, c: Integer;
+  d: Double;
+begin
+  Result := TgVector.From(numRows);
+  for r := 0 to numRows - 1 do
+  begin
+    d := 0;
+    for c := 0 to numCols - 1 do
+      d := d + Element[r, c]^ * v.Items[c]^;
+    Result[r]^ := d;
+  end;
+end;
+
 function TgMatrix.Multiply(const m: TgMatrix): TgMatrix;
 var
   numCommon, r, c, i: Integer;
@@ -620,7 +670,6 @@ begin
 
   if odd then
     determinant := -determinant;
-
   Result := True;
 end;
 
@@ -631,6 +680,68 @@ begin
   temp := a^;
   a^ := b^;
   b^ := temp;
+end;
+
+{$EndRegion}
+
+{$Region 'TVector2'}
+
+class function TVector2.From: TVector2;
+begin
+  Result.v := TgVector.From(2);
+end;
+
+{$EndRegion}
+
+{$Region 'TMatrix2x2'}
+
+class function TMatrix2x2.From: TMatrix2x2;
+begin
+  Result.m := TgMatrix.From(2, 2);
+end;
+
+function TMatrix2x2.Inverse(invertibility: PBoolean): TMatrix2x2;
+var
+  invertible: Boolean;
+  det, invDet: Double;
+begin
+  det := m[0, 0]^ * m[1, 1]^ - m[0, 1]^ * m[1, 0]^;
+  if det = 0 then
+  begin
+    Result.m.MakeZero;
+    invertible := False;
+  end
+  else
+  begin
+    invDet := 1 / det;
+    Result := TMatrix2x2.From;
+    Result.m.FElements := [
+      m[1, 1]^ * invDet,
+      -m[0, 1]^ * invDet,
+      -m[1, 0]^ * invDet,
+      m[0, 0]^ * invDet];
+    invertible := True;
+  end;
+  if invertibility <> nil then
+    invertibility^ := invertible;
+end;
+
+{$EndRegion}
+
+{$Region 'TLinearSystem'}
+
+function TLinearSystem.Solve(const A: TMatrix2x2; const B: TVector2;
+  var X: TVector2): Boolean;
+var
+  invertible: Boolean;
+  invA: TMatrix2x2;
+begin
+  invA := A.Inverse(@invertible);
+  if invertible then
+    X.v := invA.m.Multiply(B.v)
+  else
+    X.v.MakeZero;
+  Result := invertible;
 end;
 
 {$EndRegion}
