@@ -112,6 +112,7 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="TestUtils.pas"/>
+        <DCCReference Include="..\src\Oz.Solid.Matrix.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Types.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Intersect.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Boolean.pas"/>
@@ -128,8 +129,8 @@
         <DCCReference Include="..\..\Oz-SGL\src\Oz.SGL.Heap.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Utils.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Expr.pas"/>
+        <DCCReference Include="..\src\Oz.Solid.Solver.pas"/>
         <DCCReference Include="..\src\Oz.Solid.Context.pas"/>
-        <DCCReference Include="..\src\Oz.Solid.Matrix.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

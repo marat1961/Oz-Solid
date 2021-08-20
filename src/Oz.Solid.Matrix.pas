@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this file. If not, see <https://www.gnu.org/licenses/>.
  *)
- unit Oz.Solid.Matrix;
+unit Oz.Solid.Matrix;
 
 interface
 
@@ -23,9 +23,7 @@ uses
   System.SysUtils, System.Math;
 
 type
-
-  EgtError = class(Exception)
-  end;
+  EMatrixError = class(Exception);
 
 {$Region 'TgVector'}
 
@@ -194,7 +192,7 @@ implementation
 procedure CheckSize(b: Boolean);
 begin
   if not b then
-    raise EgtError.Create('Mismatched sizes');
+    raise EMatrixError.Create('Mismatched sizes');
 end;
 
 {$Region 'TgVector'}
@@ -343,7 +341,7 @@ procedure TgMatrix.CheckIndex(r, c: Integer);
 begin
   if (Cardinal(r) >= Cardinal(GetNumRows)) or
     (Cardinal(c) >= Cardinal(GetNumCols)) then
-    raise EgtError.Create('Invalid index');
+    raise EMatrixError.Create('Invalid index');
 end;
 
 function TgMatrix.GetElement(r, c: Integer): PDouble;
@@ -494,7 +492,7 @@ var
   invertible: Boolean;
 begin
   if GetNumRows() <> GetNumCols() then
-    raise EgtError.Create('Matrix must be square.');
+    raise EMatrixError.Create('Matrix must be square.');
   invM := TgMatrix.From(GetNumRows(), GetNumCols());
 
   invertible := TGaussianElimination.Process(GetNumRows(), @Self, @invM,
@@ -507,7 +505,7 @@ end;
 function TgMatrix.Determinante(): Double;
 begin
   if GetNumRows() <> GetNumCols() then
-    raise EgtError.Create('Matrix must be square.');
+    raise EMatrixError.Create('Matrix must be square.');
   TGaussianElimination.Process(GetNumRows(), @Self, nil, Result, nil, nil,
     nil, 0, nil);
 end;
@@ -533,7 +531,7 @@ var
 begin
   if (numRows <= 0) or (m <> nil) or ((b <> nil) <> (x <> nil)) or
     ((c <> nil) <> (y <> nil)) or ((c <> nil) and (numCols < 1)) then
-    raise EgtError.Create('Invalid input.');
+    raise EMatrixError.Create('Invalid input.');
 
   numElements := numRows * numRows;
   wantInverse := inverseM <> nil;
