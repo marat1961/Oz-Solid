@@ -280,7 +280,8 @@ begin
 end;
 
 procedure TCustomTaggedList.Assign(const Source: TCustomTaggedList);
-var i: Integer;
+var
+  i: Integer;
 begin
   Count := 0;
   for i := 0 to Source.Count - 1 do
@@ -619,7 +620,8 @@ begin
 end;
 
 procedure TsdIdList<T>.Assign(const Source: TsdIdList<T>);
-var i: Integer;
+var
+  i: Integer;
 begin
   Clear;
   for i := 0 to Source.Count - 1 do
@@ -633,7 +635,8 @@ begin
 end;
 
 function TsdIdList<T>.FindByIdNoOops(id: Cardinal): PItem;
-var i: Integer;
+var
+  i: Integer;
 begin
   i := IndexOf(id);
   if i < 0 then
@@ -643,7 +646,8 @@ begin
 end;
 
 procedure TsdIdList<T>.RemoveById(id: Cardinal);
-var i: Integer;
+var
+  i: Integer;
 begin
   i := IndexOf(id);
   if i < 0 then exit;

@@ -39,11 +39,19 @@ type
     UnexpectedOperator = 2;
   end;
 
-{$Region 'TsdParam'}
+{$Region 'Handlers'}
 
   hParam = record
     v: Cardinal;
   end;
+
+  hEquation = record
+    v: Cardinal;
+  end;
+
+{$EndRegion}
+
+{$Region 'TsdParam'}
 
   PsdParam = ^TsdParam;
   TsdParam = record
@@ -185,9 +193,14 @@ type
   private type
     TSymbolType = (ERROR, PAREN_LEFT, PAREN_RIGHT, BINARY_OP, UNARY_OP, OPERAND, EOS);
     TSymbol = record
+    var
       typ: TSymbolType;
       err: TErrNo;
       expr: PExpr;
+    strict private class var
+      Meta: PsgItemMeta;
+    public
+      class function GetMeta: PPsgItemMeta; static;
       constructor From(typ: TSymbolType; expr: PExpr = nil); overload;
       constructor From(typ: TSymbolType; op: TExpr.TOp); overload;
       constructor From(err: TErrNo); overload;
@@ -881,23 +894,13 @@ end;
 
 {$EndRegion}
 
-{$Region 'TExprParser'}
+{$Region 'TExprParser.TSymbol'}
 
-constructor TExprParser.From(const inp: string);
-var
-  n: Integer;
+class function TExprParser.TSymbol.GetMeta: PPsgItemMeta;
 begin
-  n := inp.Length - 1;
-  Check(n >= 0, 'TExprParser: empty expr');
-  it := PChar(inp);
-  stack := TsgStack<TSymbol>.From(200);
-  NextChar;
-end;
-
-procedure TExprParser.Clear;
-begin
-  stack.Clear;
-  id := '';
+  if Meta = nil then
+    Meta := SysCtx.CreateMeta<TExprParser.TSymbol>(nil);
+  Result := @Meta;
 end;
 
 constructor TExprParser.TSymbol.From(typ: TSymbolType; expr: PExpr);
@@ -925,6 +928,27 @@ end;
 function TExprParser.TSymbol.IsError: Boolean;
 begin
   Result := typ = TSymbolType.ERROR;
+end;
+
+{$EndRegion}
+
+{$Region 'TExprParser'}
+
+constructor TExprParser.From(const inp: string);
+var
+  n: Integer;
+begin
+  n := inp.Length - 1;
+  Check(n >= 0, 'TExprParser: empty expr');
+  it := PChar(inp);
+  stack := TsgStack<TSymbol>.From(TSymbol.GetMeta^, 200);
+  NextChar;
+end;
+
+procedure TExprParser.Clear;
+begin
+  stack.Clear;
+  id := '';
 end;
 
 procedure TExprParser.NextChar;
